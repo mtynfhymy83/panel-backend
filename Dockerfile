@@ -1,67 +1,55 @@
-# syntax=docker.arvancloud.ir/docker/dockerfile:1.6
-# BuildKit required: DOCKER_BUILDKIT=1 docker build .
+# syntax=docker/dockerfile:1.6
+# Official Docker Hub images — works on GitHub Actions and most networks.
+# Local build (Iran mirrors): see Dockerfile.iran or pass custom base image ARGs.
+
+ARG PHP_IMAGE=php:8.2-cli-alpine
+ARG COMPOSER_IMAGE=composer:2
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 0: Composer binary
 # ─────────────────────────────────────────────────────────────────────────────
-FROM docker.arvancloud.ir/composer:latest AS composer-bin
+FROM ${COMPOSER_IMAGE} AS composer-bin
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 1: Extension builder
+# Stage 1: PHP extensions (Swoole, Redis, PDO, GD, …)
 # ─────────────────────────────────────────────────────────────────────────────
-FROM docker.arvancloud.ir/php:8.2-cli-alpine3.18 AS ext-builder
+FROM ${PHP_IMAGE} AS ext-builder
 
-RUN printf 'https://linux-mirror.liara.ir/repository/alpine/v3.18/main\nhttps://linux-mirror.liara.ir/repository/alpine/v3.18/community\n' \
-    > /etc/apk/repositories
+RUN apk add --no-cache \
+        $PHPIZE_DEPS \
+        linux-headers \
+        postgresql-dev \
+        libzip-dev \
+        freetype-dev \
+        libjpeg-turbo-dev \
+        libpng-dev \
+        openssl-dev
 
-RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
-    apk add --no-cache \
-        autoconf g++ make linux-headers \
-        postgresql-dev libzip-dev freetype-dev libjpeg-turbo-dev libpng-dev openssl-dev
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" \
+        pdo pdo_pgsql pdo_mysql sockets pcntl zip opcache gd
 
-# نصب redis به همراه dependency هاش: igbinary و msgpack
-RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
-    apk add --no-cache \
-        php82-pecl-swoole \
-        php82-pecl-redis \
-        php82-pecl-igbinary \
-        php82-pecl-msgpack
-
-RUN docker-php-ext-install -j$(nproc) pdo pdo_pgsql pdo_mysql sockets pcntl zip opcache \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd
-
-# کپی همه .so ها شامل igbinary و msgpack که redis بهشون نیاز داره
-RUN PHP_EXT_DIR="$(php -r 'echo ini_get("extension_dir");')" \
-    && cp /usr/lib/php82/modules/swoole.so   "$PHP_EXT_DIR/swoole.so" \
-    && cp /usr/lib/php82/modules/redis.so    "$PHP_EXT_DIR/redis.so" \
-    && cp /usr/lib/php82/modules/igbinary.so "$PHP_EXT_DIR/igbinary.so" \
-    && cp /usr/lib/php82/modules/msgpack.so  "$PHP_EXT_DIR/msgpack.so"
+RUN pecl install igbinary msgpack \
+    && pecl install -o -f redis \
+    && pecl install -o -f swoole \
+    && docker-php-ext-enable igbinary msgpack redis swoole
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2: Runtime
 # ─────────────────────────────────────────────────────────────────────────────
-FROM docker.arvancloud.ir/php:8.2-cli-alpine3.18
+FROM ${PHP_IMAGE}
 
-RUN printf 'https://linux-mirror.liara.ir/repository/alpine/v3.18/main\nhttps://linux-mirror.liara.ir/repository/alpine/v3.18/community\n' \
-    > /etc/apk/repositories
-
-RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
-    apk add --no-cache \
-        git unzip curl bash openssl tzdata mariadb-client \
+RUN apk add --no-cache \
+        git unzip curl bash openssl tzdata \
         libpq libzip freetype libjpeg-turbo libpng \
         lz4-libs c-ares brotli-libs libstdc++
 
 COPY --from=ext-builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
 COPY --from=ext-builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 
-# ترتیب مهمه: اول igbinary و msgpack، بعد redis که بهشون وابسته‌ست
-RUN docker-php-ext-enable igbinary msgpack swoole redis \
-    && php -m | grep -E 'swoole|redis|igbinary|msgpack' \
+RUN php -m | grep -E 'swoole|redis|igbinary|msgpack|pdo_pgsql' \
     && php -r "new Redis();" \
-    && echo "✅ Redis class OK" \
-    && php -r "echo swoole_version();" \
-    && echo "✅ Swoole OK"
+    && php -r "echo swoole_version();"
 
 RUN { \
     echo "memory_limit=512M"; \
@@ -76,14 +64,14 @@ RUN { \
     && echo "Asia/Tehran" > /etc/timezone
 
 COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
-RUN composer config -g repos.packagist composer https://package-mirror.liara.ir/repository/composer/
 
 RUN addgroup -g 1000 app && adduser -D -u 1000 -G app app
 
 WORKDIR /var/www/html
 
 COPY composer.json composer.lock ./
-RUN --mount=type=cache,target=/root/.composer/cache \
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache \
     composer install \
         --no-dev \
         --no-interaction \
@@ -93,12 +81,9 @@ RUN --mount=type=cache,target=/root/.composer/cache \
         --no-scripts
 
 COPY . .
-# نکته: از --classmap-authoritative استفاده نمی‌کنیم. آن flag، fallback مبتنی بر
-# PSR-4 را کامل غیرفعال می‌کند؛ پس هر کلاسی که (به‌خاطر کش لایه یا دیپلوی ناقص)
-# در classmap نباشد، با «class doesn't exist» شکست می‌خورد و کل DI/route را می‌خواباند.
-# با --optimize تنها، classmap برای سرعت ساخته می‌شود ولی PSR-4 به‌عنوان شبکهٔ ایمنی می‌ماند.
+
 RUN composer dump-autoload --optimize --no-dev \
-    && mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
+    && mkdir -p storage/logs storage/cache storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
     && chown -R app:app storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
