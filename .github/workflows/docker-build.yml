@@ -32,22 +32,17 @@ jobs:
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
-          missing=0
-          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
-            echo "::error::Secret DOCKERHUB_USERNAME is not set."
-            missing=1
-          fi
           if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
             echo "::error::Secret DOCKERHUB_TOKEN is not set."
-            missing=1
-          fi
-          if [ "$missing" -eq 1 ]; then
             echo ""
-            echo "Add secrets in GitHub:"
+            echo "Add this secret in GitHub:"
             echo "  Repository → Settings → Secrets and variables → Actions → New repository secret"
             echo ""
-            echo "  DOCKERHUB_USERNAME  = your Docker Hub username"
-            echo "  DOCKERHUB_TOKEN     = Docker Hub Access Token (Account Settings → Security → Personal Access Tokens)"
+            echo "  Name:  DOCKERHUB_TOKEN"
+            echo "  Value: Docker Hub Access Token"
+            echo "         (hub.docker.com → Account Settings → Security → Personal Access Tokens → New)"
+            echo ""
+            echo "Username is fixed in workflow: mtynfhymy83"
             exit 1
           fi
 
@@ -58,7 +53,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: mtynfhymy83
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract Docker metadata
