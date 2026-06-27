@@ -1,0 +1,9 @@
+parameters:
+    level: 5
+    paths:
+        - App
+    excludePaths:
+        - App/Framework/Bootstrap/Server.php
+    ignoreErrors:
+        - '#Swoole\\#'
+        - '#Predis\\#'

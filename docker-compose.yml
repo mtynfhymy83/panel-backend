@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - "9501:9501"
+    env_file:
+      - .env
+    volumes:
+      - ./:/var/www/html
+    restart: unless-stopped

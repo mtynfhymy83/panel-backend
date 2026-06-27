@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="tests/bootstrap.php" colors="true" cacheResult="false">
+    <testsuites>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <env name="APP_DEBUG" value="1"/>
+        <env name="JWT_SECRET" value="test-secret-key-at-least-32-bytes-long"/>
+        <env name="JWT_ALGO" value="HS256"/>
+        <env name="JWT_TTL" value="60"/>
+        <env name="CACHE_DRIVER" value="file"/>
+        <env name="DB_DSN" value="sqlite::memory:"/>
+    </php>
+</phpunit>
