@@ -62,7 +62,7 @@ class CheckAccessMiddleware
         Context::set('auth_active_role', $activeRole);
         Context::set('auth_token', $token);
 
-        if (!in_array($activeRole, $allowedRoles, true)) {
+        if ($activeRole !== 'admin' && !in_array($activeRole, $allowedRoles, true)) {
             throw new AccessDeniedException('You do not have permission for this action.', 403);
         }
 

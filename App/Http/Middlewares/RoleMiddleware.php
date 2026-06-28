@@ -23,7 +23,7 @@ class RoleMiddleware implements MiddlewareInterface
     public function handle(Request $request, Response $response, callable $next)
     {
         $activeRole = AuthContext::activeRole();
-        if ($activeRole === null || !in_array($activeRole, $this->allowedRoles, true)) {
+        if ($activeRole === null || ($activeRole !== 'admin' && !in_array($activeRole, $this->allowedRoles, true))) {
             throw new AccessDeniedException('You do not have permission for this action.', 403);
         }
         return $next($request, $response);
