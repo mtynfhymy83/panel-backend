@@ -5,6 +5,11 @@ services:
       - "9501:9501"
     env_file:
       - .env
+    environment:
+      # Override here or in .env — DB_DSN is required when APP_DEBUG=0
+      # DB_DSN: pgsql:host=45.156.186.63;port=23695;dbname=your_db
+      # DB_USERNAME: your_user
+      # DB_PASSWORD: your_password
     volumes:
       - ./:/var/www/html
     restart: unless-stopped

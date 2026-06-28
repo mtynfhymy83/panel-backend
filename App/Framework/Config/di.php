@@ -15,6 +15,8 @@ use App\Infrastructure\Persistence\Repositories\NoteRepository;
 
 use App\Infrastructure\Cache\CacheFactory;
 use App\Infrastructure\Cache\CacheInterface;
+use App\Infrastructure\Mail\MailFactory;
+use App\Infrastructure\Mail\MailServiceInterface;
 use App\Infrastructure\Sms\SmsFactory;
 use App\Infrastructure\Sms\SmsServiceInterface;
 
@@ -53,6 +55,7 @@ return function (): ContainerInterface {
     $builder->addDefinitions([
         CacheInterface::class => static fn () => CacheFactory::create(),
         SmsServiceInterface::class => static fn () => SmsFactory::create(),
+        MailServiceInterface::class => static fn () => MailFactory::create(),
 
         JwtService::class => autowire(),
         OtpService::class => autowire(),

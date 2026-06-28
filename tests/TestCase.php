@@ -43,7 +43,7 @@ abstract class TestCase extends BaseTestCase
             'users' => "CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, first_name VARCHAR(100) NOT NULL,
                 last_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NOT NULL UNIQUE,
-                password VARCHAR(255) NOT NULL, deleted_at TEXT,
+                email VARCHAR(255) UNIQUE, password VARCHAR(255) NOT NULL, deleted_at TEXT,
                 created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
             )",
             'user_roles' => 'CREATE TABLE user_roles (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, role VARCHAR(50) NOT NULL, UNIQUE(user_id, role))',
@@ -77,7 +77,7 @@ abstract class TestCase extends BaseTestCase
             "CREATE TABLE users (
                 id BIGINT AUTO_INCREMENT PRIMARY KEY, first_name VARCHAR(100) NOT NULL,
                 last_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NOT NULL UNIQUE,
-                password VARCHAR(255) NOT NULL, deleted_at TIMESTAMP NULL,
+                email VARCHAR(255) UNIQUE, password VARCHAR(255) NOT NULL, deleted_at TIMESTAMP NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )",

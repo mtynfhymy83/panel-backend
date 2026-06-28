@@ -33,24 +33,37 @@ class AuthService
             ->required('firstName')
             ->required('lastName')
             ->required('phone')
+            ->required('email')
             ->required('password')
             ->iranPhone('phone')
+            ->email('email')
             ->minLength('password', 6)
             ->validate();
 
         $phone = (string) $input['phone'];
+        $email = strtolower(trim((string) $input['email']));
 
         if ($this->users->phoneExists($phone)) {
             throw new ValidationException(['phone' => 'Phone is already registered.']);
+        }
+        if ($this->users->emailExists($email)) {
+            throw new ValidationException(['email' => 'Email is already registered.']);
         }
 
         $this->cache->set('register_payload:' . $phone, [
             'first_name' => trim((string) $input['firstName']),
             'last_name'  => trim((string) $input['lastName']),
+            'email'      => $email,
             'password'   => password_hash((string) $input['password'], PASSWORD_BCRYPT),
         ], 300);
 
-        return $this->otp->send($phone, OtpPurpose::Register);
+        return $this->otp->send(
+            $phone,
+            OtpPurpose::Register,
+            null,
+            'Verification code sent to your email.',
+            $email
+        );
     }
 
     public function verifyRegister(array $input): array
@@ -74,7 +87,8 @@ class AuthService
                 (string) $payload['first_name'],
                 (string) $payload['last_name'],
                 $phone,
-                (string) $payload['password']
+                (string) $payload['password'],
+                isset($payload['email']) ? (string) $payload['email'] : null
             );
             $this->users->addRole($userId, Role::Student->value);
             $this->cache->delete('register_payload:' . $phone);
@@ -112,14 +126,20 @@ class AuthService
 
         $user = $this->users->findActiveByPhone($phone);
         if ($user === null) {
-            return ['message' => 'If the phone is registered, a verification code will be sent.'];
+            return ['message' => 'If the phone is registered, a verification code will be sent to your email.'];
+        }
+
+        $email = isset($user['email']) ? trim((string) $user['email']) : '';
+        if ($email === '') {
+            return ['message' => 'If the phone is registered, a verification code will be sent to your email.'];
         }
 
         return $this->otp->send(
             $phone,
             OtpPurpose::PasswordLogin,
             (int) $user['id'],
-            'If the phone is registered, a verification code will be sent.'
+            'If the phone is registered, a verification code will be sent to your email.',
+            $email
         );
     }
 
@@ -219,7 +239,16 @@ class AuthService
             throw new ValidationException(['phone' => 'Phone is already registered.']);
         }
 
-        return $this->otp->send($phone, OtpPurpose::PhoneChange, $userId);
+        $user = $this->users->findById($userId);
+        $email = $user !== null ? trim((string) ($user['email'] ?? '')) : '';
+
+        return $this->otp->send(
+            $phone,
+            OtpPurpose::PhoneChange,
+            $userId,
+            'Verification code sent to your email.',
+            $email !== '' ? $email : null
+        );
     }
 
     public function verifyPhoneChange(int $userId, array $input): array

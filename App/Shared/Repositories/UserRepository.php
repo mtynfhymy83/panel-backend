@@ -39,6 +39,12 @@ class UserRepository
         return $row !== false && $row !== null;
     }
 
+    public function emailExists(string $email): bool
+    {
+        $row = DB::fetch('SELECT id FROM users WHERE email = :e LIMIT 1', [':e' => $email]);
+        return $row !== false && $row !== null;
+    }
+
     /** @return list<string> */
     public function getRoles(int $userId): array
     {
@@ -46,15 +52,21 @@ class UserRepository
         return array_map(static fn (array $r) => (string) $r['role'], $rows);
     }
 
-    public function create(string $firstName, string $lastName, string $phone, string $passwordHash): int
-    {
+    public function create(
+        string $firstName,
+        string $lastName,
+        string $phone,
+        string $passwordHash,
+        ?string $email = null
+    ): int {
         $id = DB::execute(
-            'INSERT INTO users (first_name, last_name, phone, password, created_at, updated_at)
-             VALUES (:first_name, :last_name, :phone, :password, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+            'INSERT INTO users (first_name, last_name, phone, email, password, created_at, updated_at)
+             VALUES (:first_name, :last_name, :phone, :email, :password, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
             [
                 ':first_name' => $firstName,
                 ':last_name'  => $lastName,
                 ':phone'      => $phone,
+                ':email'      => $email,
                 ':password'   => $passwordHash,
             ],
             returnLastInsertId: true
@@ -131,7 +143,7 @@ class UserRepository
             $params[':role'] = $role;
         }
         if ($search !== null && $search !== '') {
-            $where[] = '(u.first_name LIKE :search OR u.last_name LIKE :search OR u.phone LIKE :search)';
+            $where[] = '(u.first_name LIKE :search OR u.last_name LIKE :search OR u.phone LIKE :search OR u.email LIKE :search)';
             $params[':search'] = '%' . $search . '%';
         }
         $sql = 'SELECT u.* FROM users u WHERE ' . implode(' AND ', $where) . ' ORDER BY u.id DESC LIMIT :limit OFFSET :offset';
@@ -149,7 +161,7 @@ class UserRepository
             $params[':role'] = $role;
         }
         if ($search !== null && $search !== '') {
-            $where[] = '(u.first_name LIKE :search OR u.last_name LIKE :search OR u.phone LIKE :search)';
+            $where[] = '(u.first_name LIKE :search OR u.last_name LIKE :search OR u.phone LIKE :search OR u.email LIKE :search)';
             $params[':search'] = '%' . $search . '%';
         }
         $row = DB::fetch('SELECT COUNT(*) AS c FROM users u WHERE ' . implode(' AND ', $where), $params);

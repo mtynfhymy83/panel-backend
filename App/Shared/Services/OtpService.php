@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Services;
 
 use App\Infrastructure\Cache\CacheInterface;
+use App\Infrastructure\Mail\MailServiceInterface;
 use App\Infrastructure\Sms\SmsServiceInterface;
 use App\Shared\Enums\OtpPurpose;
 use App\Shared\Exceptions\BadRequestException;
@@ -19,7 +20,8 @@ class OtpService
 
     public function __construct(
         private CacheInterface $cache,
-        private SmsServiceInterface $sms
+        private SmsServiceInterface $sms,
+        private MailServiceInterface $mail
     ) {
     }
 
@@ -27,14 +29,15 @@ class OtpService
         string $phone,
         OtpPurpose $purpose,
         ?int $userId = null,
-        string $message = 'Verification code sent.'
+        string $message = 'Verification code sent.',
+        ?string $email = null
     ): array {
         $this->assertRateLimit($phone, $purpose);
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $hash = password_hash($code, PASSWORD_BCRYPT);
 
-        $this->sms->sendOtp($phone, $code, $purpose->value);
+        $this->dispatchOtp($phone, $email, $code, $purpose->value);
 
         $payload = [
             'hash'     => $hash,
@@ -71,6 +74,33 @@ class OtpService
         return isset($payload['user_id']) ? (int) $payload['user_id'] : null;
     }
 
+    private function dispatchOtp(string $phone, ?string $email, string $code, string $purpose): void
+    {
+        $channel = $this->otpChannel();
+
+        if ($channel === 'sms' || $channel === 'both') {
+            $this->sms->sendOtp($phone, $code, $purpose);
+        }
+
+        if ($channel === 'email' || $channel === 'both') {
+            $to = trim((string) $email);
+            if ($to === '') {
+                throw new BadRequestException('Email is required for verification code delivery.');
+            }
+            $this->mail->sendOtp($to, $code, $purpose);
+        }
+    }
+
+    private function otpChannel(): string
+    {
+        $channel = strtolower(trim((string) ($_ENV['OTP_CHANNEL'] ?? 'email')));
+
+        return match ($channel) {
+            'sms', 'both' => $channel,
+            default => 'email',
+        };
+    }
+
     private function assertRateLimit(string $phone, OtpPurpose $purpose): void
     {
         $rateKey = 'otp_rate:' . $purpose->value . ':' . $phone;
@@ -101,8 +131,22 @@ class OtpService
             return false;
         }
 
-        $driver = strtolower((string) ($_ENV['SMS_DRIVER'] ?? 'fake'));
+        $channel = $this->otpChannel();
 
-        return $driver === 'fake' || $driver === '';
+        if ($channel === 'sms' || $channel === 'both') {
+            $smsDriver = strtolower((string) ($_ENV['SMS_DRIVER'] ?? 'fake'));
+            if ($smsDriver === 'fake' || $smsDriver === '') {
+                return true;
+            }
+        }
+
+        if ($channel === 'email' || $channel === 'both') {
+            $mailDriver = strtolower((string) ($_ENV['MAIL_DRIVER'] ?? 'log'));
+            if ($mailDriver === 'log' || $mailDriver === 'fake' || $mailDriver === '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

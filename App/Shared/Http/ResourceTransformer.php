@@ -17,6 +17,9 @@ class ResourceTransformer
             'lastName'  => $lastName,
             'fullName'  => trim($firstName . ' ' . $lastName),
             'phone'     => (string) ($row['phone'] ?? ''),
+            'email'     => isset($row['email']) && $row['email'] !== null && $row['email'] !== ''
+                ? (string) $row['email']
+                : null,
             'role'      => $activeRole ?? ($roles[0] ?? null),
             'roles'     => $roles ?? [],
             'createdAt' => self::iso($row['created_at'] ?? null),

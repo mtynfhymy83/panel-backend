@@ -44,7 +44,11 @@ class WorkerBootstrapper
     {
         $dsn = $_ENV['DB_DSN'] ?? getenv('DB_DSN') ?: '';
         if ($dsn === '') {
-            error_log("Worker #{$this->workerId}: DB_DSN not set — running without a database.");
+            $message = 'DB_DSN is not set. Add database credentials to .env or container environment variables.';
+            if (($_ENV['APP_DEBUG'] ?? '0') !== '1') {
+                throw new \RuntimeException($message);
+            }
+            error_log("Worker #{$this->workerId}: {$message} — running without a database.");
             return;
         }
 

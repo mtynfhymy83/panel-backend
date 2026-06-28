@@ -57,6 +57,18 @@ class Validator
         return $this;
     }
 
+    public function email(string $field = 'email', ?string $message = null): self
+    {
+        $value = trim((string) ($this->data[$field] ?? ''));
+        if ($value === '') {
+            return $this;
+        }
+        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            $this->errors[$field] = $message ?? 'Email must be a valid email address.';
+        }
+        return $this;
+    }
+
     public function in(string $field, array $allowed, ?string $message = null): self
     {
         $value = $this->data[$field] ?? null;

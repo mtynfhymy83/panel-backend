@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Infrastructure\Cache\FileDriver;
+use App\Infrastructure\Mail\LogDriver;
 use App\Infrastructure\Sms\FakeDriver;
 use App\Modules\Auth\Services\AuthService;
 use App\Shared\Enums\OtpPurpose;
@@ -22,7 +23,7 @@ class AuthTest extends TestCase
         $cache = new FileDriver(sys_get_temp_dir() . '/pardis-test-cache-' . getmypid());
         return new AuthService(
             new UserRepository(),
-            new OtpService($cache, new FakeDriver()),
+            new OtpService($cache, new FakeDriver(), new LogDriver()),
             new JwtService(),
             $cache
         );
@@ -34,10 +35,11 @@ class AuthTest extends TestCase
             'firstName' => 'Ali',
             'lastName'  => 'Rezaei',
             'phone'     => '09124444444',
+            'email'     => 'ali@example.com',
             'password'  => 'secret123',
         ]);
 
-        $this->assertSame('Verification code sent.', $result['message']);
+        $this->assertSame('Verification code sent to your email.', $result['message']);
         $this->assertArrayHasKey('debugOtp', $result);
         $this->assertMatchesRegularExpression('/^\d{6}$/', $result['debugOtp']);
     }
@@ -49,6 +51,7 @@ class AuthTest extends TestCase
             'firstName' => 'Ali',
             'lastName'  => 'Rezaei',
             'phone'     => '12345',
+            'email'     => 'ali@example.com',
             'password'  => 'secret123',
         ]);
     }
@@ -56,7 +59,7 @@ class AuthTest extends TestCase
     public function testRegisterVerifyCreatesStudentUser(): void
     {
         $cache = new FileDriver(sys_get_temp_dir() . '/pardis-test-cache-' . getmypid());
-        $otp = new OtpService($cache, new FakeDriver());
+        $otp = new OtpService($cache, new FakeDriver(), new LogDriver());
         $auth = new AuthService(new UserRepository(), $otp, new JwtService(), $cache);
 
         $phone = '09121111111';
@@ -64,6 +67,7 @@ class AuthTest extends TestCase
             'firstName' => 'Student',
             'lastName'  => 'One',
             'phone'     => $phone,
+            'email'     => 'student@example.com',
             'password'  => 'secret123',
         ]);
 
@@ -73,6 +77,7 @@ class AuthTest extends TestCase
         $this->assertArrayHasKey('token', $result);
         $this->assertSame('student', $result['user']['role']);
         $this->assertSame('09121111111', $result['user']['phone']);
+        $this->assertSame('student@example.com', $result['user']['email']);
     }
 
     public function testLoginWithValidCredentials(): void
@@ -86,7 +91,7 @@ class AuthTest extends TestCase
     public function testPhoneUniquenessIncludesSoftDeleted(): void
     {
         $users = new UserRepository();
-        $id = $users->create('Del', 'User', '09123333333', password_hash('x', PASSWORD_BCRYPT));
+        $id = $users->create('Del', 'User', '09123333333', password_hash('x', PASSWORD_BCRYPT), 'del@example.com');
         $users->addRole($id, Role::Student->value);
         $users->softDelete($id);
 

@@ -11,6 +11,8 @@
         <env name="JWT_ALGO" value="HS256"/>
         <env name="JWT_TTL" value="60"/>
         <env name="CACHE_DRIVER" value="file"/>
+        <env name="OTP_CHANNEL" value="email"/>
+        <env name="MAIL_DRIVER" value="log"/>
         <env name="DB_DSN" value="sqlite::memory:"/>
     </php>
 </phpunit>
