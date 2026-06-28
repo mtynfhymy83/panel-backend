@@ -21,10 +21,12 @@ info:
     name: Pardis API
 
 servers:
+  - url: /
+    description: Current host (use this in Swagger Try it out)
   - url: https://panel.pardis-book.ir
-    description: Production (default)
+    description: Production
   - url: http://localhost:9501
-    description: Local development
+    description: Local Swoole
 
 tags:
   - name: System

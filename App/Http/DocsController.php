@@ -45,6 +45,7 @@ final class DocsController
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script>
     window.onload = () => {
+      const currentOrigin = window.location.origin;
       SwaggerUIBundle({
         url: '/docs/openapi.yaml',
         dom_id: '#swagger-ui',
@@ -53,6 +54,20 @@ final class DocsController
         layout: 'BaseLayout',
         persistAuthorization: true,
         tryItOutEnabled: true,
+        onComplete: (swaggerApi) => {
+          const system = swaggerApi.getSystem();
+          const spec = system.specSelectors.specJson().toJS();
+          const extra = (spec.servers || []).filter(
+            (s) => s.url !== '/' && s.url !== currentOrigin && !s.url.startsWith(currentOrigin)
+          );
+          system.specActions.updateJsonSpec({
+            ...spec,
+            servers: [
+              { url: currentOrigin, description: 'Current host (recommended)' },
+              ...extra,
+            ],
+          });
+        },
       });
     };
   </script>
