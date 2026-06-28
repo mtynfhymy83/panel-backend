@@ -10,6 +10,7 @@ use App\Framework\Core\Pipeline;
 use App\Framework\Core\MiddlewareInterface;
 use App\Http\ResponseHelper;
 use App\Http\UriParser;
+use App\Http\DocsController;
 use App\Http\Routers\Router;
 use App\Http\Middlewares\ServerErrorMiddleware;
 use App\Infrastructure\Database\DB;
@@ -157,6 +158,11 @@ class Server
             return;
         }
 
+        if ($pathOnly === '/docs' || str_starts_with($pathOnly, '/docs/')) {
+            $this->serveDocs($pathOnly, $response);
+            return;
+        }
+
         $method = Method::tryFromRequest($request->server['request_method'] ?? 'GET');
         if ($method === null) {
             $response->status(405);
@@ -264,5 +270,12 @@ class Server
             $this->workerRouter = $router;
         }
         return $this->workerRouter;
+    }
+
+    private function serveDocs(string $path, Response $response): void
+    {
+        $docs = new DocsController();
+        $result = $docs->handle($path);
+        $this->sendResolvedResponse($response, $result);
     }
 }

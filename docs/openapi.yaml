@@ -1,0 +1,982 @@
+openapi: 3.0.3
+info:
+  title: Pardis Panel API
+  description: |
+    REST API for Pardis Panel (Swoole + Modular Monolith).
+
+    ## Authentication
+    Protected routes require a JWT Bearer token.
+    1. Call `POST /api/auth/login` or register flow
+    2. Copy `data.token` from the response
+    3. Click **Authorize** and paste: `Bearer {token}`
+    4. Multi-role users can switch role via `POST /api/me/active-role`
+
+    ## Response envelope
+    All JSON responses use:
+    ```json
+    { "success": true, "data": {}, "message": "OK", "error": false, "status": 200 }
+    ```
+  version: 1.0.0
+  contact:
+    name: Pardis API
+
+servers:
+  - url: http://localhost:9501
+    description: Local development
+  - url: http://127.0.0.1:9501
+    description: Local (127.0.0.1)
+
+tags:
+  - name: System
+  - name: Auth
+  - name: Admin
+  - name: Teacher
+  - name: Examiner
+  - name: Student
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT from login/register. Active role is encoded in the token.
+
+  schemas:
+    ApiEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { nullable: true }
+        message: { type: string }
+        error: { type: boolean }
+        status: { type: integer }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        username: { type: string }
+        phone: { type: string, nullable: true }
+        role: { type: string, enum: [admin, teacher, student, examiner] }
+        roles:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user:
+          $ref: '#/components/schemas/User'
+
+    CourseClass:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        level: { type: string }
+        teacherIds: { type: array, items: { type: integer } }
+        studentIds: { type: array, items: { type: integer } }
+        examinerIds: { type: array, items: { type: integer } }
+        createdAt: { type: string, format: date-time }
+
+    Term:
+      type: object
+      properties:
+        id: { type: integer }
+        classId: { type: integer }
+        name: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+        isActive: { type: boolean }
+        createdByTeacherId: { type: integer }
+        endedByTeacherId: { type: integer, nullable: true }
+        endedAt: { type: string, format: date-time, nullable: true }
+
+    Grade:
+      type: object
+      properties:
+        id: { type: integer }
+        classId: { type: integer }
+        termId: { type: integer }
+        studentId: { type: integer }
+        teacherId: { type: integer }
+        criteriaScores: { type: object }
+        score: { type: number }
+        totalScore: { type: number }
+        maxTotalScore: { type: number }
+        feedback: { type: object }
+
+    Message:
+      type: object
+      properties:
+        id: { type: integer }
+        studentId: { type: integer }
+        classId: { type: integer, nullable: true }
+        type: { type: string }
+        title: { type: string }
+        body: { type: string }
+        status: { type: string, enum: [pending, reviewed, replied] }
+        adminReply: { type: string, nullable: true }
+
+    ValidationError:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string, example: Validation failed }
+        errors:
+          type: object
+          additionalProperties: { type: string }
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1 }
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, default: 20 }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+    Forbidden:
+      description: Insufficient role permissions
+    NotFound:
+      description: Resource not found
+    ValidationFailed:
+      description: Validation error (422)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is up
+
+  /ping:
+    get:
+      tags: [System]
+      summary: Ping
+      responses:
+        '200':
+          description: Service is up
+
+  /api/auth/register/otp:
+    post:
+      tags: [Auth]
+      summary: Send registration OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, username, phone, password]
+              properties:
+                fullName: { type: string }
+                username: { type: string }
+                phone: { type: string, example: '09123456789' }
+                password: { type: string, minLength: 6 }
+      responses:
+        '200':
+          description: OTP sent
+
+  /api/auth/register/verify:
+    post:
+      tags: [Auth]
+      summary: Verify registration OTP and create student account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string }
+                code: { type: string, example: '123456' }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+
+  /api/auth/password-login/otp:
+    post:
+      tags: [Auth]
+      summary: Send forgot-password OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string }
+      responses:
+        '200':
+          description: OTP sent if phone exists
+
+  /api/auth/password-login/verify:
+    post:
+      tags: [Auth]
+      summary: Verify forgot-password OTP and login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string }
+                code: { type: string }
+      responses:
+        '200':
+          description: Logged in via OTP
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (blacklist current token)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Logged out
+
+  /api/me:
+    get:
+      tags: [Auth]
+      summary: Current user profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+    patch:
+      tags: [Auth]
+      summary: Update profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName]
+              properties:
+                fullName: { type: string }
+                username: { type: string }
+      responses:
+        '200':
+          description: Updated profile
+
+  /api/me/password:
+    patch:
+      tags: [Auth]
+      summary: Change password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 6 }
+      responses:
+        '200':
+          description: Password changed
+
+  /api/me/active-role:
+    post:
+      tags: [Auth]
+      summary: Switch active role (multi-role users)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [admin, teacher, student, examiner] }
+      responses:
+        '200':
+          description: New token with active role
+
+  /api/me/phone/otp:
+    post:
+      tags: [Auth]
+      summary: Send OTP for phone change
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string }
+      responses:
+        '200':
+          description: OTP sent
+
+  /api/me/phone/verify:
+    patch:
+      tags: [Auth]
+      summary: Verify OTP and update phone
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string }
+                code: { type: string }
+      responses:
+        '200':
+          description: Phone updated
+
+  /api/admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Admin dashboard stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Dashboard data
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: role
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated users
+
+  /api/admin/users/{user}/roles:
+    patch:
+      tags: [Admin]
+      summary: Update user roles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roles]
+              properties:
+                roles:
+                  type: array
+                  items: { type: string, enum: [admin, teacher, student, examiner] }
+      responses:
+        '200':
+          description: Roles updated
+
+  /api/admin/users/{user}:
+    delete:
+      tags: [Admin]
+      summary: Soft-delete user (non-admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: User deleted
+
+  /api/admin/classes:
+    get:
+      tags: [Admin]
+      summary: List classes
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated classes
+    post:
+      tags: [Admin]
+      summary: Create class
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, level]
+              properties:
+                name: { type: string }
+                level: { type: string, enum: ['1','2','3','4','5','6'] }
+      responses:
+        '201':
+          description: Class created
+
+  /api/admin/classes/{class}:
+    patch:
+      tags: [Admin]
+      summary: Update class
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, level]
+              properties:
+                name: { type: string }
+                level: { type: string }
+      responses:
+        '200':
+          description: Class updated
+    delete:
+      tags: [Admin]
+      summary: Delete class
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Class deleted
+
+  /api/admin/classes/{class}/members:
+    post:
+      tags: [Admin]
+      summary: Add class member
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, role]
+              properties:
+                userId: { type: integer }
+                role: { type: string, enum: [teacher, student, examiner] }
+      responses:
+        '200':
+          description: Member added
+
+  /api/admin/classes/{class}/members/{user}:
+    delete:
+      tags: [Admin]
+      summary: Remove class member
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: user
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: role
+          in: query
+          required: true
+          schema: { type: string, enum: [teacher, student, examiner] }
+      responses:
+        '200':
+          description: Member removed
+
+  /api/admin/terms:
+    get:
+      tags: [Admin]
+      summary: List terms (read-only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class_id
+          in: query
+          schema: { type: integer }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated terms
+
+  /api/admin/exams:
+    get:
+      tags: [Admin]
+      summary: List exams (read-only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class_id
+          in: query
+          schema: { type: integer }
+        - name: level
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated exams
+
+  /api/admin/progress:
+    get:
+      tags: [Admin]
+      summary: Class grading progress
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class_id
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Progress data
+
+  /api/admin/messages:
+    get:
+      tags: [Admin]
+      summary: List student messages
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated messages
+
+  /api/admin/messages/{message}/review:
+    patch:
+      tags: [Admin]
+      summary: Mark message as reviewed
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: message
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Reviewed
+
+  /api/admin/messages/{message}/reply:
+    patch:
+      tags: [Admin]
+      summary: Reply to message
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: message
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [adminReply]
+              properties:
+                adminReply: { type: string }
+      responses:
+        '200':
+          description: Replied
+
+  /api/admin/teacher-feedbacks:
+    get:
+      tags: [Admin]
+      summary: List teacher feedbacks
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: teacher_id
+          in: query
+          schema: { type: integer }
+        - name: class_id
+          in: query
+          schema: { type: integer }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated feedbacks
+    post:
+      tags: [Admin]
+      summary: Create teacher feedback
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [teacherId, classId]
+              properties:
+                teacherId: { type: integer }
+                classId: { type: integer }
+                strengths: { type: string }
+                improvements: { type: string }
+                gems: { type: string }
+      responses:
+        '201':
+          description: Feedback created
+
+  /api/teacher/dashboard:
+    get:
+      tags: [Teacher]
+      summary: Teacher dashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Dashboard data
+
+  /api/teacher/classes:
+    get:
+      tags: [Teacher]
+      summary: List assigned classes
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Class list
+
+  /api/teacher/classes/{class}:
+    get:
+      tags: [Teacher]
+      summary: Class detail with active term
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Class detail
+
+  /api/teacher/classes/{class}/students:
+    get:
+      tags: [Teacher]
+      summary: List students in class
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Student IDs
+
+  /api/teacher/classes/{class}/terms:
+    post:
+      tags: [Teacher]
+      summary: Start a new term
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, startDate]
+              properties:
+                name: { type: string }
+                startDate: { type: string, format: date }
+      responses:
+        '201':
+          description: Term created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Term'
+
+  /api/teacher/terms/{term}/end:
+    patch:
+      tags: [Teacher]
+      summary: End term (all students must be graded)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: term
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endDate]
+              properties:
+                endDate: { type: string, format: date }
+      responses:
+        '200':
+          description: Term ended
+
+  /api/teacher/grades:
+    post:
+      tags: [Teacher]
+      summary: Submit or update student grade
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [termId, studentId]
+              properties:
+                termId: { type: integer }
+                studentId: { type: integer }
+                criteriaScores: { type: object }
+                score: { type: number }
+                totalScore: { type: number }
+                maxTotalScore: { type: number }
+                feedback: { type: object }
+      responses:
+        '201':
+          description: Grade saved
+
+  /api/teacher/feedbacks:
+    get:
+      tags: [Teacher]
+      summary: List admin feedbacks for teacher
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated feedbacks
+
+  /api/teacher/feedbacks/mark-seen:
+    patch:
+      tags: [Teacher]
+      summary: Mark feedbacks as seen
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        '200':
+          description: Marked seen
+
+  /api/examiner/dashboard:
+    get:
+      tags: [Examiner]
+      summary: Examiner dashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Dashboard data
+
+  /api/examiner/classes/{class}/exam:
+    get:
+      tags: [Examiner]
+      summary: Get exam for active term
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Active term and exam if exists
+    post:
+      tags: [Examiner]
+      summary: Submit exam for active term
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [examDate]
+              properties:
+                examDate: { type: string, format: date }
+                studentScores: { type: object }
+                classStrengths: { type: string }
+                classImprovements: { type: string }
+                classSuggestions: { type: string }
+      responses:
+        '201':
+          description: Exam submitted
+        '409':
+          description: Duplicate exam for this term
+
+  /api/student/dashboard:
+    get:
+      tags: [Student]
+      summary: Student dashboard (ended terms only)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Grades and ended terms
+
+  /api/student/messages:
+    get:
+      tags: [Student]
+      summary: List own messages
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated messages
+    post:
+      tags: [Student]
+      summary: Create message
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, title, body]
+              properties:
+                type: { type: string, enum: [general, complaint, suggestion, question] }
+                title: { type: string }
+                body: { type: string }
+                classId: { type: integer }
+      responses:
+        '201':
+          description: Message created
+
+  /api/student/messages/mark-seen:
+    patch:
+      tags: [Student]
+      summary: Mark messages as seen
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        '200':
+          description: Marked seen

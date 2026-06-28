@@ -21,13 +21,30 @@ class UriParser
     private function parse(): void
     {
         $uri = explode('?', $this->uri, 2)[0];
+        $uri = rtrim($uri, '/') ?: '/';
 
-        if (preg_match('#^(?:/api)?/v(\d+)#', $uri, $matches)) {
+        if (preg_match('#^/api/v(\d+)(/.*)?$#', $uri, $matches)) {
             $this->apiVersion = 'v' . $matches[1];
+            $this->path = $matches[2] ?? '/';
+            return;
         }
 
-        $path = preg_replace('#^(?:/api)?/v\d+#', '', $uri);
-        $this->path = $path === '' ? '/' : $path;
+        if (preg_match('#^/v(\d+)(/.*)?$#', $uri, $matches)) {
+            $this->apiVersion = 'v' . $matches[1];
+            $this->path = $matches[2] ?? '/';
+            return;
+        }
+
+        if (preg_match('#^/api(/.*)?$#', $uri, $matches)) {
+            $this->apiVersion = 'api';
+            $this->path = $matches[1] ?? '/';
+            if ($this->path === '') {
+                $this->path = '/';
+            }
+            return;
+        }
+
+        $this->path = $uri;
     }
 
     public function getVersion(): string
