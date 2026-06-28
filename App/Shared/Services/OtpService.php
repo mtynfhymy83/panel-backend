@@ -93,11 +93,11 @@ class OtpService
 
     private function otpChannel(): string
     {
-        $channel = strtolower(trim((string) ($_ENV['OTP_CHANNEL'] ?? 'email')));
+        $channel = strtolower(trim((string) ($_ENV['OTP_CHANNEL'] ?? 'sms')));
 
         return match ($channel) {
-            'sms', 'both' => $channel,
-            default => 'email',
+            'email', 'both' => $channel,
+            default => 'sms',
         };
     }
 
@@ -127,6 +127,10 @@ class OtpService
 
     private function shouldExposeDebugOtp(): bool
     {
+        if (($_ENV['OTP_DEBUG_RESPONSE'] ?? '0') === '1') {
+            return true;
+        }
+
         if (($_ENV['APP_DEBUG'] ?? '0') !== '1') {
             return false;
         }

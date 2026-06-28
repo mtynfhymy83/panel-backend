@@ -195,12 +195,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [firstName, lastName, phone, email, password]
+              required: [firstName, lastName, phone, password]
               properties:
                 firstName: { type: string }
                 lastName: { type: string }
                 phone: { type: string, example: '09123456789' }
-                email: { type: string, format: email, example: user@example.com }
                 password: { type: string, minLength: 6 }
       responses:
         '200':

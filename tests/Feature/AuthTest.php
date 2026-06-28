@@ -35,11 +35,10 @@ class AuthTest extends TestCase
             'firstName' => 'Ali',
             'lastName'  => 'Rezaei',
             'phone'     => '09124444444',
-            'email'     => 'ali@example.com',
             'password'  => 'secret123',
         ]);
 
-        $this->assertSame('Verification code sent to your email.', $result['message']);
+        $this->assertSame('Verification code sent to your phone.', $result['message']);
         $this->assertArrayHasKey('debugOtp', $result);
         $this->assertMatchesRegularExpression('/^\d{6}$/', $result['debugOtp']);
     }
@@ -51,7 +50,6 @@ class AuthTest extends TestCase
             'firstName' => 'Ali',
             'lastName'  => 'Rezaei',
             'phone'     => '12345',
-            'email'     => 'ali@example.com',
             'password'  => 'secret123',
         ]);
     }
@@ -67,7 +65,6 @@ class AuthTest extends TestCase
             'firstName' => 'Student',
             'lastName'  => 'One',
             'phone'     => $phone,
-            'email'     => 'student@example.com',
             'password'  => 'secret123',
         ]);
 
@@ -77,7 +74,7 @@ class AuthTest extends TestCase
         $this->assertArrayHasKey('token', $result);
         $this->assertSame('student', $result['user']['role']);
         $this->assertSame('09121111111', $result['user']['phone']);
-        $this->assertSame('student@example.com', $result['user']['email']);
+        $this->assertNull($result['user']['email']);
     }
 
     public function testLoginWithValidCredentials(): void
