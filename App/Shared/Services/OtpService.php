@@ -96,7 +96,7 @@ class OtpService
         $channel = strtolower(trim((string) ($_ENV['OTP_CHANNEL'] ?? 'sms')));
 
         return match ($channel) {
-            'email', 'both' => $channel,
+            'both' => 'sms',
             default => 'sms',
         };
     }
