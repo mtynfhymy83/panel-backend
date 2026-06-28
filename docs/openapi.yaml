@@ -21,10 +21,10 @@ info:
     name: Pardis API
 
 servers:
+  - url: https://panel.pardis-book.ir
+    description: Production (default)
   - url: http://localhost:9501
     description: Local development
-  - url: http://127.0.0.1:9501
-    description: Local (127.0.0.1)
 
 tags:
   - name: System
