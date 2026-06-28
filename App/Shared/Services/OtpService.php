@@ -23,12 +23,18 @@ class OtpService
     ) {
     }
 
-    public function send(string $phone, OtpPurpose $purpose, ?int $userId = null): void
-    {
+    public function send(
+        string $phone,
+        OtpPurpose $purpose,
+        ?int $userId = null,
+        string $message = 'Verification code sent.'
+    ): array {
         $this->assertRateLimit($phone, $purpose);
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $hash = password_hash($code, PASSWORD_BCRYPT);
+
+        $this->sms->sendOtp($phone, $code, $purpose->value);
 
         $payload = [
             'hash'     => $hash,
@@ -37,7 +43,8 @@ class OtpService
         ];
 
         $this->cache->set($this->key($phone, $purpose), $payload, self::OTP_TTL);
-        $this->sms->sendOtp($phone, $code, $purpose->value);
+
+        return $this->buildSentResponse($code, $message);
     }
 
     public function verify(string $phone, OtpPurpose $purpose, string $code): ?int
@@ -76,5 +83,26 @@ class OtpService
     private function key(string $phone, OtpPurpose $purpose): string
     {
         return 'otp:' . $purpose->value . ':' . $phone;
+    }
+
+    private function buildSentResponse(string $code, string $message): array
+    {
+        $response = ['message' => $message];
+        if ($this->shouldExposeDebugOtp()) {
+            $response['debugOtp'] = $code;
+        }
+
+        return $response;
+    }
+
+    private function shouldExposeDebugOtp(): bool
+    {
+        if (($_ENV['APP_DEBUG'] ?? '0') !== '1') {
+            return false;
+        }
+
+        $driver = strtolower((string) ($_ENV['SMS_DRIVER'] ?? 'fake'));
+
+        return $driver === 'fake' || $driver === '';
     }
 }

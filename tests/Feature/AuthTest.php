@@ -28,14 +28,28 @@ class AuthTest extends TestCase
         );
     }
 
+    public function testRegisterOtpIncludesDebugOtpWhenFakeSmsAndDebug(): void
+    {
+        $result = $this->authService()->sendRegisterOtp([
+            'firstName' => 'Ali',
+            'lastName'  => 'Rezaei',
+            'phone'     => '09124444444',
+            'password'  => 'secret123',
+        ]);
+
+        $this->assertSame('Verification code sent.', $result['message']);
+        $this->assertArrayHasKey('debugOtp', $result);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $result['debugOtp']);
+    }
+
     public function testRegisterOtpRejectsInvalidPhone(): void
     {
         $this->expectException(ValidationException::class);
         $this->authService()->sendRegisterOtp([
-            'fullName' => 'Ali',
-            'username' => 'ali1',
-            'phone'    => '12345',
-            'password' => 'secret123',
+            'firstName' => 'Ali',
+            'lastName'  => 'Rezaei',
+            'phone'     => '12345',
+            'password'  => 'secret123',
         ]);
     }
 
@@ -47,10 +61,10 @@ class AuthTest extends TestCase
 
         $phone = '09121111111';
         $auth->sendRegisterOtp([
-            'fullName' => 'Student One',
-            'username' => 'student1',
-            'phone'    => $phone,
-            'password' => 'secret123',
+            'firstName' => 'Student',
+            'lastName'  => 'One',
+            'phone'     => $phone,
+            'password'  => 'secret123',
         ]);
 
         $code = $this->extractOtpFromCache($cache, $phone, OtpPurpose::Register);
@@ -58,25 +72,24 @@ class AuthTest extends TestCase
 
         $this->assertArrayHasKey('token', $result);
         $this->assertSame('student', $result['user']['role']);
-        $this->assertContains('student', $result['user']['roles']);
+        $this->assertSame('09121111111', $result['user']['phone']);
     }
 
     public function testLoginWithValidCredentials(): void
     {
-        $this->createUser('teacher1', Role::Teacher->value, '09122222222');
-        $result = $this->authService()->login(['username' => 'teacher1', 'password' => 'secret123']);
+        $this->createUser(Role::Teacher->value, '09122222222', 'Teacher', 'One');
+        $result = $this->authService()->login(['phone' => '09122222222', 'password' => 'secret123']);
         $this->assertArrayHasKey('token', $result);
         $this->assertSame('teacher', $result['user']['role']);
     }
 
-    public function testUsernameUniquenessIncludesSoftDeleted(): void
+    public function testPhoneUniquenessIncludesSoftDeleted(): void
     {
         $users = new UserRepository();
-        $id = $users->create('Del User', 'deleted_user', '09123333333', password_hash('x', PASSWORD_BCRYPT));
+        $id = $users->create('Del', 'User', '09123333333', password_hash('x', PASSWORD_BCRYPT));
         $users->addRole($id, Role::Student->value);
         $users->softDelete($id);
 
-        $this->assertTrue($users->usernameExists('deleted_user'));
         $this->assertTrue($users->phoneExists('09123333333'));
     }
 

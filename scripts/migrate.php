@@ -72,9 +72,9 @@ function getSqliteSchemas(): array
         'users' => <<<SQL
             CREATE TABLE IF NOT EXISTS users (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                full_name  VARCHAR(200) NOT NULL,
-                username   VARCHAR(100) NOT NULL UNIQUE,
-                phone      VARCHAR(20) UNIQUE,
+                first_name VARCHAR(100) NOT NULL,
+                last_name  VARCHAR(100) NOT NULL,
+                phone      VARCHAR(20) NOT NULL UNIQUE,
                 password   VARCHAR(255) NOT NULL,
                 deleted_at TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -216,9 +216,9 @@ function getMysqlSchemas(): array
         'users' => <<<SQL
             CREATE TABLE IF NOT EXISTS users (
                 id         BIGINT AUTO_INCREMENT PRIMARY KEY,
-                full_name  VARCHAR(200) NOT NULL,
-                username   VARCHAR(100) NOT NULL UNIQUE,
-                phone      VARCHAR(20) UNIQUE,
+                first_name VARCHAR(100) NOT NULL,
+                last_name  VARCHAR(100) NOT NULL,
+                phone      VARCHAR(20) NOT NULL UNIQUE,
                 password   VARCHAR(255) NOT NULL,
                 deleted_at TIMESTAMP NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -360,9 +360,9 @@ function getPgsqlSchemas(): array
         'users' => <<<SQL
             CREATE TABLE IF NOT EXISTS users (
                 id         BIGSERIAL PRIMARY KEY,
-                full_name  VARCHAR(200) NOT NULL,
-                username   VARCHAR(100) NOT NULL UNIQUE,
-                phone      VARCHAR(20) UNIQUE,
+                first_name VARCHAR(100) NOT NULL,
+                last_name  VARCHAR(100) NOT NULL,
+                phone      VARCHAR(20) NOT NULL UNIQUE,
                 password   VARCHAR(255) NOT NULL,
                 deleted_at TIMESTAMPTZ NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

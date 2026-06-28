@@ -8,11 +8,15 @@ class ResourceTransformer
 {
     public static function user(array $row, ?string $activeRole = null, ?array $roles = null): array
     {
+        $firstName = (string) ($row['first_name'] ?? '');
+        $lastName = (string) ($row['last_name'] ?? '');
+
         return [
             'id'        => (int) $row['id'],
-            'fullName'  => (string) ($row['full_name'] ?? ''),
-            'username'  => (string) ($row['username'] ?? ''),
-            'phone'     => $row['phone'] ?? null,
+            'firstName' => $firstName,
+            'lastName'  => $lastName,
+            'fullName'  => trim($firstName . ' ' . $lastName),
+            'phone'     => (string) ($row['phone'] ?? ''),
             'role'      => $activeRole ?? ($roles[0] ?? null),
             'roles'     => $roles ?? [],
             'createdAt' => self::iso($row['created_at'] ?? null),

@@ -32,24 +32,28 @@ $pdo = new PDO(
 );
 DB::initSingle($pdo);
 
-$username = (string) EnvironmentManager::get('ADMIN_USERNAME', 'admin');
 $password = (string) EnvironmentManager::get('ADMIN_PASSWORD', '');
-$fullName = (string) EnvironmentManager::get('ADMIN_FULL_NAME', 'System Admin');
+$firstName = (string) EnvironmentManager::get('ADMIN_FIRST_NAME', 'System');
+$lastName = (string) EnvironmentManager::get('ADMIN_LAST_NAME', 'Admin');
 $phone = (string) EnvironmentManager::get('ADMIN_PHONE', '');
 
 if ($password === '') {
     fwrite(STDERR, "ADMIN_PASSWORD is required in .env\n");
     exit(1);
 }
+if ($phone === '') {
+    fwrite(STDERR, "ADMIN_PHONE is required in .env\n");
+    exit(1);
+}
 
 $users = new UserRepository();
-$existing = $users->findByUsername($username);
+$existing = $users->findByPhone($phone);
 if ($existing !== null) {
-    echo "Admin user already exists: {$username}\n";
+    echo "Admin user already exists for phone: {$phone}\n";
     exit(0);
 }
 
-$userId = $users->create($fullName, $username, $phone !== '' ? $phone : null, password_hash($password, PASSWORD_BCRYPT));
+$userId = $users->create($firstName, $lastName, $phone, password_hash($password, PASSWORD_BCRYPT));
 $users->addRole($userId, Role::Admin->value);
 
-echo "Admin user created: {$username} (id={$userId})\n";
+echo "Admin user created: {$phone} (id={$userId})\n";

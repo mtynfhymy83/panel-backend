@@ -41,8 +41,8 @@ abstract class TestCase extends BaseTestCase
 
         $schemas = [
             'users' => "CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, full_name VARCHAR(200) NOT NULL,
-                username VARCHAR(100) NOT NULL UNIQUE, phone VARCHAR(20) UNIQUE,
+                id INTEGER PRIMARY KEY AUTOINCREMENT, first_name VARCHAR(100) NOT NULL,
+                last_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NOT NULL UNIQUE,
                 password VARCHAR(255) NOT NULL, deleted_at TEXT,
                 created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
             )",
@@ -75,8 +75,8 @@ abstract class TestCase extends BaseTestCase
 
         $schemas = [
             "CREATE TABLE users (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY, full_name VARCHAR(200) NOT NULL,
-                username VARCHAR(100) NOT NULL UNIQUE, phone VARCHAR(20) UNIQUE,
+                id BIGINT AUTO_INCREMENT PRIMARY KEY, first_name VARCHAR(100) NOT NULL,
+                last_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NOT NULL UNIQUE,
                 password VARCHAR(255) NOT NULL, deleted_at TIMESTAMP NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -144,10 +144,10 @@ abstract class TestCase extends BaseTestCase
         }
     }
 
-    protected function createUser(string $username, string $role, ?string $phone = null): int
+    protected function createUser(string $role, string $phone, string $firstName = 'Test', string $lastName = 'User'): int
     {
         $users = new \App\Shared\Repositories\UserRepository();
-        $id = $users->create('Test ' . $username, $username, $phone, password_hash('secret123', PASSWORD_BCRYPT));
+        $id = $users->create($firstName, $lastName, $phone, password_hash('secret123', PASSWORD_BCRYPT));
         $users->addRole($id, $role);
         return $id;
     }

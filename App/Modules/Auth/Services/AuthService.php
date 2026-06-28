@@ -30,8 +30,8 @@ class AuthService
     public function sendRegisterOtp(array $input): array
     {
         Validator::make($input)
-            ->required('fullName')
-            ->required('username')
+            ->required('firstName')
+            ->required('lastName')
             ->required('phone')
             ->required('password')
             ->iranPhone('phone')
@@ -39,23 +39,18 @@ class AuthService
             ->validate();
 
         $phone = (string) $input['phone'];
-        $username = (string) $input['username'];
 
-        if ($this->users->usernameExists($username)) {
-            throw new ValidationException(['username' => 'Username is already taken.']);
-        }
         if ($this->users->phoneExists($phone)) {
             throw new ValidationException(['phone' => 'Phone is already registered.']);
         }
 
         $this->cache->set('register_payload:' . $phone, [
-            'full_name' => trim((string) $input['fullName']),
-            'username'  => $username,
-            'password'  => password_hash((string) $input['password'], PASSWORD_BCRYPT),
+            'first_name' => trim((string) $input['firstName']),
+            'last_name'  => trim((string) $input['lastName']),
+            'password'   => password_hash((string) $input['password'], PASSWORD_BCRYPT),
         ], 300);
 
-        $this->otp->send($phone, OtpPurpose::Register);
-        return ['message' => 'Verification code sent.'];
+        return $this->otp->send($phone, OtpPurpose::Register);
     }
 
     public function verifyRegister(array $input): array
@@ -71,16 +66,13 @@ class AuthService
         }
 
         return DB::transaction(function () use ($phone, $payload) {
-            if ($this->users->usernameExists((string) $payload['username'])) {
-                throw new ValidationException(['username' => 'Username is already taken.']);
-            }
             if ($this->users->phoneExists($phone)) {
                 throw new ValidationException(['phone' => 'Phone is already registered.']);
             }
 
             $userId = $this->users->create(
-                (string) $payload['full_name'],
-                (string) $payload['username'],
+                (string) $payload['first_name'],
+                (string) $payload['last_name'],
                 $phone,
                 (string) $payload['password']
             );
@@ -93,9 +85,14 @@ class AuthService
 
     public function login(array $input): array
     {
-        Validator::make($input)->required('username')->required('password')->validate();
+        Validator::make($input)
+            ->required('phone')
+            ->required('password')
+            ->iranPhone('phone')
+            ->validate();
 
-        $user = $this->users->findActiveByUsername((string) $input['username']);
+        $phone = (string) $input['phone'];
+        $user = $this->users->findActiveByPhone($phone);
         if ($user === null || !password_verify((string) $input['password'], (string) $user['password'])) {
             throw new AuthenticationException('Invalid credentials.');
         }
@@ -118,8 +115,12 @@ class AuthService
             return ['message' => 'If the phone is registered, a verification code will be sent.'];
         }
 
-        $this->otp->send($phone, OtpPurpose::PasswordLogin, (int) $user['id']);
-        return ['message' => 'If the phone is registered, a verification code will be sent.'];
+        return $this->otp->send(
+            $phone,
+            OtpPurpose::PasswordLogin,
+            (int) $user['id'],
+            'If the phone is registered, a verification code will be sent.'
+        );
     }
 
     public function verifyPasswordLogin(array $input): array
@@ -166,21 +167,17 @@ class AuthService
 
     public function updateProfile(int $userId, array $input): array
     {
-        Validator::make($input)->required('fullName')->string('fullName', 200)->validate();
+        Validator::make($input)
+            ->required('firstName')
+            ->required('lastName')
+            ->string('firstName', 100)
+            ->string('lastName', 100)
+            ->validate();
 
-        if (isset($input['username'])) {
-            $username = (string) $input['username'];
-            $existing = $this->users->findByUsername($username);
-            if ($existing !== null && (int) $existing['id'] !== $userId) {
-                throw new ValidationException(['username' => 'Username is already taken.']);
-            }
-            $this->users->updateProfile($userId, [
-                'full_name' => trim((string) $input['fullName']),
-                'username'  => $username,
-            ]);
-        } else {
-            $this->users->updateProfile($userId, ['full_name' => trim((string) $input['fullName'])]);
-        }
+        $this->users->updateProfile($userId, [
+            'first_name' => trim((string) $input['firstName']),
+            'last_name'  => trim((string) $input['lastName']),
+        ]);
 
         return $this->me($userId);
     }
@@ -222,8 +219,7 @@ class AuthService
             throw new ValidationException(['phone' => 'Phone is already registered.']);
         }
 
-        $this->otp->send($phone, OtpPurpose::PhoneChange, $userId);
-        return ['message' => 'Verification code sent.'];
+        return $this->otp->send($phone, OtpPurpose::PhoneChange, $userId);
     }
 
     public function verifyPhoneChange(int $userId, array $input): array

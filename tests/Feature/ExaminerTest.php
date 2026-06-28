@@ -19,7 +19,7 @@ class ExaminerTest extends TestCase
 {
     public function testExaminerCannotSubmitWithoutActiveTerm(): void
     {
-        $examinerId = $this->createUser('exam1', Role::Examiner->value);
+        $examinerId = $this->createUser(Role::Examiner->value, '09127000001');
         $classes = new ClassRepository();
         $classId = $classes->create('Class F', '2');
         $classes->addMember($classId, $examinerId, 'examiner');
@@ -31,8 +31,8 @@ class ExaminerTest extends TestCase
 
     public function testExaminerDuplicateSubmitReturnsConflict(): void
     {
-        $teacherId = $this->createUser('t3', Role::Teacher->value);
-        $examinerId = $this->createUser('exam2', Role::Examiner->value);
+        $teacherId = $this->createUser(Role::Teacher->value, '09127000002');
+        $examinerId = $this->createUser(Role::Examiner->value, '09127000003');
 
         $classes = new ClassRepository();
         $classId = $classes->create('Class G', '3');

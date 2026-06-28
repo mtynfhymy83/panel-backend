@@ -19,8 +19,8 @@ class StudentDashboardTest extends TestCase
 {
     public function testStudentDashboardHidesActiveTermGrades(): void
     {
-        $teacherId = $this->createUser('t1', Role::Teacher->value);
-        $studentId = $this->createUser('s1', Role::Student->value);
+        $teacherId = $this->createUser(Role::Teacher->value, '09126000001');
+        $studentId = $this->createUser(Role::Student->value, '09126000002');
 
         $classes = new ClassRepository();
         $classId = $classes->create('Class D', '1');
@@ -45,8 +45,8 @@ class StudentDashboardTest extends TestCase
 
     public function testStudentDashboardShowsEndedTermGrades(): void
     {
-        $teacherId = $this->createUser('t2', Role::Teacher->value);
-        $studentId = $this->createUser('s2', Role::Student->value);
+        $teacherId = $this->createUser(Role::Teacher->value, '09126000003');
+        $studentId = $this->createUser(Role::Student->value, '09126000004');
 
         $classes = new ClassRepository();
         $classId = $classes->create('Class E', '1');

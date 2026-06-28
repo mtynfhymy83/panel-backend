@@ -56,9 +56,10 @@ components:
       type: object
       properties:
         id: { type: integer }
-        fullName: { type: string }
-        username: { type: string }
-        phone: { type: string, nullable: true }
+        firstName: { type: string }
+        lastName: { type: string }
+        fullName: { type: string, description: Computed firstName + lastName }
+        phone: { type: string, example: '09123456789' }
         role: { type: string, enum: [admin, teacher, student, examiner] }
         roles:
           type: array
@@ -71,6 +72,15 @@ components:
         token: { type: string }
         user:
           $ref: '#/components/schemas/User'
+
+    OtpSentData:
+      type: object
+      properties:
+        message: { type: string, example: Verification code sent. }
+        debugOtp:
+          type: string
+          example: '482901'
+          description: Only when APP_DEBUG=1 and SMS_DRIVER=fake
 
     CourseClass:
       type: object
@@ -182,15 +192,23 @@ paths:
           application/json:
             schema:
               type: object
-              required: [fullName, username, phone, password]
+              required: [firstName, lastName, phone, password]
               properties:
-                fullName: { type: string }
-                username: { type: string }
+                firstName: { type: string }
+                lastName: { type: string }
                 phone: { type: string, example: '09123456789' }
                 password: { type: string, minLength: 6 }
       responses:
         '200':
           description: OTP sent
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/OtpSentData'
 
   /api/auth/register/verify:
     post:
@@ -221,16 +239,16 @@ paths:
   /api/auth/login:
     post:
       tags: [Auth]
-      summary: Login with username and password
+      summary: Login with phone and password
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [username, password]
+              required: [phone, password]
               properties:
-                username: { type: string }
+                phone: { type: string, example: '09123456789' }
                 password: { type: string }
       responses:
         '200':
@@ -260,6 +278,14 @@ paths:
       responses:
         '200':
           description: OTP sent if phone exists
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/OtpSentData'
 
   /api/auth/password-login/verify:
     post:
@@ -312,10 +338,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [fullName]
+              required: [firstName, lastName]
               properties:
-                fullName: { type: string }
-                username: { type: string }
+                firstName: { type: string }
+                lastName: { type: string }
       responses:
         '200':
           description: Updated profile

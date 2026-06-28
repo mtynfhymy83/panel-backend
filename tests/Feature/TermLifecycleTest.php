@@ -18,9 +18,9 @@ class TermLifecycleTest extends TestCase
 {
     public function testTeacherCannotEndTermBeforeAllStudentsGraded(): void
     {
-        $teacherId = $this->createUser('teacher', Role::Teacher->value);
-        $student1 = $this->createUser('student1', Role::Student->value);
-        $student2 = $this->createUser('student2', Role::Student->value);
+        $teacherId = $this->createUser(Role::Teacher->value, '09125000001');
+        $student1 = $this->createUser(Role::Student->value, '09125000002');
+        $student2 = $this->createUser(Role::Student->value, '09125000003');
 
         $classes = new ClassRepository();
         $classId = $classes->create('Class A', '4');
@@ -47,8 +47,8 @@ class TermLifecycleTest extends TestCase
 
     public function testTeacherCanEndTermWhenAllStudentsGraded(): void
     {
-        $teacherId = $this->createUser('teacher2', Role::Teacher->value);
-        $student1 = $this->createUser('student3', Role::Student->value);
+        $teacherId = $this->createUser(Role::Teacher->value, '09125000004');
+        $student1 = $this->createUser(Role::Student->value, '09125000005');
 
         $classes = new ClassRepository();
         $classId = $classes->create('Class B', '3');
@@ -75,7 +75,7 @@ class TermLifecycleTest extends TestCase
 
     public function testCannotCreateTermWhenActiveExists(): void
     {
-        $teacherId = $this->createUser('teacher3', Role::Teacher->value);
+        $teacherId = $this->createUser(Role::Teacher->value, '09125000006');
         $classes = new ClassRepository();
         $classId = $classes->create('Class C', '2');
         $classes->addMember($classId, $teacherId, 'teacher');

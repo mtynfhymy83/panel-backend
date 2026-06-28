@@ -18,24 +18,9 @@ class UserRepository
         return $row ?: null;
     }
 
-    public function findByUsername(string $username): ?array
-    {
-        $row = DB::fetch('SELECT * FROM users WHERE username = :u LIMIT 1', [':u' => $username]);
-        return $row ?: null;
-    }
-
     public function findByPhone(string $phone): ?array
     {
         $row = DB::fetch('SELECT * FROM users WHERE phone = :p LIMIT 1', [':p' => $phone]);
-        return $row ?: null;
-    }
-
-    public function findActiveByUsername(string $username): ?array
-    {
-        $row = DB::fetch(
-            'SELECT * FROM users WHERE username = :u AND deleted_at IS NULL LIMIT 1',
-            [':u' => $username]
-        );
         return $row ?: null;
     }
 
@@ -46,12 +31,6 @@ class UserRepository
             [':p' => $phone]
         );
         return $row ?: null;
-    }
-
-    public function usernameExists(string $username): bool
-    {
-        $row = DB::fetch('SELECT id FROM users WHERE username = :u LIMIT 1', [':u' => $username]);
-        return $row !== false && $row !== null;
     }
 
     public function phoneExists(string $phone): bool
@@ -67,16 +46,16 @@ class UserRepository
         return array_map(static fn (array $r) => (string) $r['role'], $rows);
     }
 
-    public function create(string $fullName, string $username, ?string $phone, string $passwordHash): int
+    public function create(string $firstName, string $lastName, string $phone, string $passwordHash): int
     {
         $id = DB::execute(
-            'INSERT INTO users (full_name, username, phone, password, created_at, updated_at)
-             VALUES (:full_name, :username, :phone, :password, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+            'INSERT INTO users (first_name, last_name, phone, password, created_at, updated_at)
+             VALUES (:first_name, :last_name, :phone, :password, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
             [
-                ':full_name' => $fullName,
-                ':username'  => $username,
-                ':phone'     => $phone,
-                ':password'  => $passwordHash,
+                ':first_name' => $firstName,
+                ':last_name'  => $lastName,
+                ':phone'      => $phone,
+                ':password'   => $passwordHash,
             ],
             returnLastInsertId: true
         );
@@ -106,7 +85,7 @@ class UserRepository
     {
         $fields = [];
         $params = [':id' => $userId];
-        foreach (['full_name', 'username'] as $col) {
+        foreach (['first_name', 'last_name'] as $col) {
             if (array_key_exists($col, $data)) {
                 $fields[] = "{$col} = :{$col}";
                 $params[":{$col}"] = $data[$col];
@@ -152,7 +131,7 @@ class UserRepository
             $params[':role'] = $role;
         }
         if ($search !== null && $search !== '') {
-            $where[] = '(u.full_name LIKE :search OR u.username LIKE :search OR u.phone LIKE :search)';
+            $where[] = '(u.first_name LIKE :search OR u.last_name LIKE :search OR u.phone LIKE :search)';
             $params[':search'] = '%' . $search . '%';
         }
         $sql = 'SELECT u.* FROM users u WHERE ' . implode(' AND ', $where) . ' ORDER BY u.id DESC LIMIT :limit OFFSET :offset';
@@ -170,7 +149,7 @@ class UserRepository
             $params[':role'] = $role;
         }
         if ($search !== null && $search !== '') {
-            $where[] = '(u.full_name LIKE :search OR u.username LIKE :search OR u.phone LIKE :search)';
+            $where[] = '(u.first_name LIKE :search OR u.last_name LIKE :search OR u.phone LIKE :search)';
             $params[':search'] = '%' . $search . '%';
         }
         $row = DB::fetch('SELECT COUNT(*) AS c FROM users u WHERE ' . implode(' AND ', $where), $params);

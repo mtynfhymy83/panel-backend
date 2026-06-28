@@ -15,7 +15,7 @@ use App\Infrastructure\Persistence\Repositories\NoteRepository;
 
 use App\Infrastructure\Cache\CacheFactory;
 use App\Infrastructure\Cache\CacheInterface;
-use App\Infrastructure\Sms\FakeDriver;
+use App\Infrastructure\Sms\SmsFactory;
 use App\Infrastructure\Sms\SmsServiceInterface;
 
 use App\Shared\Repositories\UserRepository;
@@ -52,7 +52,7 @@ return function (): ContainerInterface {
 
     $builder->addDefinitions([
         CacheInterface::class => static fn () => CacheFactory::create(),
-        SmsServiceInterface::class => autowire(FakeDriver::class),
+        SmsServiceInterface::class => static fn () => SmsFactory::create(),
 
         JwtService::class => autowire(),
         OtpService::class => autowire(),
