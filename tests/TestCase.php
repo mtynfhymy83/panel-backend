@@ -55,6 +55,7 @@ abstract class TestCase extends BaseTestCase
             'student_messages' => "CREATE TABLE student_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, student_id INTEGER NOT NULL, course_class_id INTEGER, type VARCHAR(50) NOT NULL, title VARCHAR(255) NOT NULL, body TEXT NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'pending', admin_reply TEXT, admin_reply_by INTEGER, reviewed_at TEXT, replied_at TEXT, student_seen_at TEXT, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))",
             'student_message_teachers' => 'CREATE TABLE student_message_teachers (student_message_id INTEGER NOT NULL, teacher_id INTEGER NOT NULL, PRIMARY KEY (student_message_id, teacher_id))',
             'teacher_feedbacks' => "CREATE TABLE teacher_feedbacks (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER NOT NULL, course_class_id INTEGER NOT NULL, admin_id INTEGER NOT NULL, strengths TEXT, improvements TEXT, gems TEXT, teacher_seen_at TEXT, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))",
+            'refresh_tokens' => "CREATE TABLE refresh_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token_hash VARCHAR(64) NOT NULL UNIQUE, active_role VARCHAR(50) NOT NULL, expires_at TEXT NOT NULL, revoked_at TEXT, created_at TEXT DEFAULT (datetime('now')))",
         ];
         foreach ($schemas as $sql) {
             DB::execute($sql);
@@ -64,7 +65,7 @@ abstract class TestCase extends BaseTestCase
     private function runMysqlMigrations(): void
     {
         $tables = [
-            'student_message_teachers', 'teacher_feedbacks', 'student_messages', 'exams',
+            'refresh_tokens', 'student_message_teachers', 'teacher_feedbacks', 'student_messages', 'exams',
             'teacher_grades', 'terms', 'class_memberships', 'course_classes', 'user_roles', 'users',
         ];
         DB::execute('SET FOREIGN_KEY_CHECKS=0');
@@ -137,6 +138,12 @@ abstract class TestCase extends BaseTestCase
                 admin_id BIGINT NOT NULL, strengths TEXT NULL, improvements TEXT NULL, gems TEXT NULL,
                 teacher_seen_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE refresh_tokens (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, token_hash VARCHAR(64) NOT NULL UNIQUE,
+                active_role VARCHAR(50) NOT NULL, expires_at TIMESTAMP NOT NULL, revoked_at TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_refresh_tokens_user_id (user_id)
             )",
         ];
         foreach ($schemas as $sql) {

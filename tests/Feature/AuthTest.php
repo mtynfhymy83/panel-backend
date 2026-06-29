@@ -10,10 +10,13 @@ use App\Infrastructure\Sms\FakeDriver;
 use App\Modules\Auth\Services\AuthService;
 use App\Shared\Enums\OtpPurpose;
 use App\Shared\Enums\Role;
+use App\Shared\Exceptions\AuthenticationException;
 use App\Shared\Exceptions\ValidationException;
+use App\Shared\Repositories\RefreshTokenRepository;
 use App\Shared\Repositories\UserRepository;
 use App\Shared\Services\JwtService;
 use App\Shared\Services\OtpService;
+use App\Shared\Services\RefreshTokenService;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -25,6 +28,7 @@ class AuthTest extends TestCase
             new UserRepository(),
             new OtpService($cache, new FakeDriver(), new LogDriver()),
             new JwtService(),
+            new RefreshTokenService(new RefreshTokenRepository()),
             $cache
         );
     }
@@ -58,7 +62,13 @@ class AuthTest extends TestCase
     {
         $cache = new FileDriver(sys_get_temp_dir() . '/pardis-test-cache-' . getmypid());
         $otp = new OtpService($cache, new FakeDriver(), new LogDriver());
-        $auth = new AuthService(new UserRepository(), $otp, new JwtService(), $cache);
+        $auth = new AuthService(
+            new UserRepository(),
+            $otp,
+            new JwtService(),
+            new RefreshTokenService(new RefreshTokenRepository()),
+            $cache
+        );
 
         $phone = '09121111111';
         $auth->sendRegisterOtp([
@@ -72,6 +82,8 @@ class AuthTest extends TestCase
         $result = $auth->verifyRegister(['phone' => $phone, 'code' => $code]);
 
         $this->assertArrayHasKey('token', $result);
+        $this->assertArrayHasKey('refreshToken', $result);
+        $this->assertNotEmpty($result['refreshToken']);
         $this->assertSame('student', $result['user']['role']);
         $this->assertSame('09121111111', $result['user']['phone']);
         $this->assertNull($result['user']['email']);
@@ -82,7 +94,37 @@ class AuthTest extends TestCase
         $this->createUser(Role::Teacher->value, '09122222222', 'Teacher', 'One');
         $result = $this->authService()->login(['phone' => '09122222222', 'password' => 'secret123']);
         $this->assertArrayHasKey('token', $result);
+        $this->assertArrayHasKey('refreshToken', $result);
         $this->assertSame('teacher', $result['user']['role']);
+    }
+
+    public function testRefreshIssuesNewTokensAndRotatesRefreshToken(): void
+    {
+        $auth = $this->authService();
+        $this->createUser(Role::Student->value, '09125555555');
+        $login = $auth->login(['phone' => '09125555555', 'password' => 'secret123']);
+        $oldRefresh = $login['refreshToken'];
+
+        $refreshed = $auth->refresh(['refreshToken' => $oldRefresh]);
+
+        $this->assertNotSame($login['token'], $refreshed['token']);
+        $this->assertNotSame($oldRefresh, $refreshed['refreshToken']);
+        $this->assertSame('student', $refreshed['user']['role']);
+
+        $this->expectException(AuthenticationException::class);
+        $auth->refresh(['refreshToken' => $oldRefresh]);
+    }
+
+    public function testRefreshRejectsRevokedToken(): void
+    {
+        $auth = $this->authService();
+        $this->createUser(Role::Student->value, '09126666666');
+        $login = $auth->login(['phone' => '09126666666', 'password' => 'secret123']);
+
+        $auth->logout(null, $login['refreshToken']);
+
+        $this->expectException(AuthenticationException::class);
+        $auth->refresh(['refreshToken' => $login['refreshToken']]);
     }
 
     public function testPhoneUniquenessIncludesSoftDeleted(): void

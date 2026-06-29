@@ -15,6 +15,7 @@ use App\Shared\Http\ResourceTransformer;
 use App\Shared\Repositories\UserRepository;
 use App\Shared\Services\JwtService;
 use App\Shared\Services\OtpService;
+use App\Shared\Services\RefreshTokenService;
 use App\Shared\Validators\Validator;
 
 class AuthService
@@ -23,6 +24,7 @@ class AuthService
         private UserRepository $users,
         private OtpService $otp,
         private JwtService $jwt,
+        private RefreshTokenService $refreshTokens,
         private CacheInterface $cache
     ) {
     }
@@ -151,10 +153,42 @@ class AuthService
         return $this->authResponse($userId, $roles[0] ?? Role::Student->value);
     }
 
-    public function logout(?string $token): array
+    public function refresh(array $input): array
+    {
+        Validator::make($input)->required('refreshToken')->validate();
+
+        $rotated = $this->refreshTokens->rotate((string) $input['refreshToken']);
+        $userId = $rotated['userId'];
+        $activeRole = $rotated['activeRole'];
+
+        $user = $this->users->findById($userId);
+        if ($user === null || !empty($user['deleted_at'])) {
+            $this->refreshTokens->revoke($rotated['refreshToken']);
+            throw new AuthenticationException('Invalid refresh token.');
+        }
+
+        if (!$this->users->hasRole($userId, $activeRole)) {
+            $this->refreshTokens->revoke($rotated['refreshToken']);
+            throw new AuthenticationException('Invalid refresh token.');
+        }
+
+        $roles = $this->users->getRoles($userId);
+        $token = $this->jwt->issue($userId, $roles, $activeRole);
+
+        return [
+            'token'        => $token,
+            'refreshToken' => $rotated['refreshToken'],
+            'user'         => ResourceTransformer::user($user, $activeRole, $roles),
+        ];
+    }
+
+    public function logout(?string $token, ?string $refreshToken = null): array
     {
         if ($token !== null && $token !== '') {
             $this->cache->set('jwt_blacklist:' . hash('sha256', $token), true, $this->jwt->ttlSeconds());
+        }
+        if ($refreshToken !== null && $refreshToken !== '') {
+            $this->refreshTokens->revoke($refreshToken);
         }
         return ['message' => 'Logged out.'];
     }
@@ -197,10 +231,11 @@ class AuthService
         }
 
         $this->users->updatePassword($userId, password_hash((string) $input['newPassword'], PASSWORD_BCRYPT));
+        $this->refreshTokens->revokeAllForUser($userId);
         return ['message' => 'Password updated.'];
     }
 
-    public function switchActiveRole(int $userId, array $input, ?string $currentToken = null): array
+    public function switchActiveRole(int $userId, array $input, ?string $currentToken = null, ?string $refreshToken = null): array
     {
         Validator::make($input)->required('role')->validate();
         $role = (string) $input['role'];
@@ -210,6 +245,9 @@ class AuthService
 
         if ($currentToken !== null && $currentToken !== '') {
             $this->cache->set('jwt_blacklist:' . hash('sha256', $currentToken), true, $this->jwt->ttlSeconds());
+        }
+        if ($refreshToken !== null && $refreshToken !== '') {
+            $this->refreshTokens->revoke($refreshToken);
         }
 
         return $this->authResponse($userId, $role);
@@ -258,10 +296,12 @@ class AuthService
         $user = $this->users->findById($userId);
         $roles = $this->users->getRoles($userId);
         $token = $this->jwt->issue($userId, $roles, $activeRole);
+        $refreshToken = $this->refreshTokens->issue($userId, $activeRole);
 
         return [
-            'token' => $token,
-            'user'  => ResourceTransformer::user($user, $activeRole, $roles),
+            'token'        => $token,
+            'refreshToken' => $refreshToken,
+            'user'         => ResourceTransformer::user($user, $activeRole, $roles),
         ];
     }
 }

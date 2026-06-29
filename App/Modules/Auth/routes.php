@@ -11,6 +11,7 @@ return static function (Router $router): void {
     $router->post('api', '/auth/login', AuthController::class, 'login');
     $router->post('api', '/auth/password-login/otp', AuthController::class, 'passwordLoginOtp');
     $router->post('api', '/auth/password-login/verify', AuthController::class, 'passwordLoginVerify');
+    $router->post('api', '/auth/refresh', AuthController::class, 'refresh');
     $router->post('api', '/auth/logout', AuthController::class, 'logout', 'auth');
 
     $router->get('api', '/me', AuthController::class, 'me', 'auth');

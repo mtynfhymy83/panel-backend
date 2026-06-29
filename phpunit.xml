@@ -10,6 +10,7 @@
         <env name="JWT_SECRET" value="test-secret-key-at-least-32-bytes-long"/>
         <env name="JWT_ALGO" value="HS256"/>
         <env name="JWT_TTL" value="60"/>
+        <env name="REFRESH_TTL_DAYS" value="30"/>
         <env name="CACHE_DRIVER" value="file"/>
         <env name="OTP_CHANNEL" value="sms"/>
         <env name="MAIL_DRIVER" value="log"/>

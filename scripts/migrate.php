@@ -200,6 +200,18 @@ function getSqliteSchemas(): array
                 updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
             )
         SQL,
+        'refresh_tokens' => <<<SQL
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL,
+                token_hash  VARCHAR(64) NOT NULL UNIQUE,
+                active_role VARCHAR(50) NOT NULL,
+                expires_at  TEXT NOT NULL,
+                revoked_at  TEXT,
+                created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        SQL,
+        'refresh_tokens_user_idx' => 'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id)',
     ];
 }
 
@@ -343,6 +355,18 @@ function getMysqlSchemas(): array
                 teacher_seen_at TIMESTAMP NULL,
                 created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        SQL,
+        'refresh_tokens' => <<<SQL
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
+                id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id     BIGINT NOT NULL,
+                token_hash  VARCHAR(64) NOT NULL UNIQUE,
+                active_role VARCHAR(50) NOT NULL,
+                expires_at  TIMESTAMP NOT NULL,
+                revoked_at  TIMESTAMP NULL,
+                created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_refresh_tokens_user_id (user_id)
             )
         SQL,
     ];
@@ -490,5 +514,17 @@ function getPgsqlSchemas(): array
                 updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
             )
         SQL,
+        'refresh_tokens' => <<<SQL
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
+                id          BIGSERIAL PRIMARY KEY,
+                user_id     BIGINT NOT NULL,
+                token_hash  VARCHAR(64) NOT NULL UNIQUE,
+                active_role VARCHAR(50) NOT NULL,
+                expires_at  TIMESTAMPTZ NOT NULL,
+                revoked_at  TIMESTAMPTZ NULL,
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+        SQL,
+        'refresh_tokens_user_idx' => 'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id)',
     ];
 }

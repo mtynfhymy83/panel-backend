@@ -21,6 +21,7 @@ use App\Infrastructure\Sms\SmsFactory;
 use App\Infrastructure\Sms\SmsServiceInterface;
 
 use App\Shared\Repositories\UserRepository;
+use App\Shared\Repositories\RefreshTokenRepository;
 use App\Shared\Repositories\ClassRepository;
 use App\Shared\Repositories\TermRepository;
 use App\Shared\Repositories\GradeRepository;
@@ -29,6 +30,7 @@ use App\Shared\Repositories\MessageRepository;
 use App\Shared\Repositories\FeedbackRepository;
 use App\Shared\Services\JwtService;
 use App\Shared\Services\OtpService;
+use App\Shared\Services\RefreshTokenService;
 
 use App\Modules\Auth\Services\AuthService;
 use App\Modules\Auth\Controllers\AuthController;
@@ -59,10 +61,12 @@ return function (): ContainerInterface {
 
         JwtService::class => autowire(),
         OtpService::class => autowire(),
+        RefreshTokenService::class => autowire(),
         CheckAccessMiddleware::class => autowire(),
         JwtAuthMiddleware::class => autowire(),
 
         UserRepository::class => autowire(),
+        RefreshTokenRepository::class => autowire(),
         ClassRepository::class => autowire(),
         TermRepository::class => autowire(),
         GradeRepository::class => autowire(),

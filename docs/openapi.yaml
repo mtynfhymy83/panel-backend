@@ -73,6 +73,7 @@ components:
       type: object
       properties:
         token: { type: string }
+        refreshToken: { type: string }
         user:
           $ref: '#/components/schemas/User'
 
@@ -265,6 +266,34 @@ paths:
                       data:
                         $ref: '#/components/schemas/AuthResponse'
 
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: Exchange a valid refresh token for a new access token and rotated refresh token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: New tokens issued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/auth/password-login/otp:
     post:
       tags: [Auth]
@@ -311,8 +340,16 @@ paths:
   /api/auth/logout:
     post:
       tags: [Auth]
-      summary: Logout (blacklist current token)
+      summary: Logout (blacklist current token and optionally revoke refresh token)
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
       responses:
         '200':
           description: Logged out

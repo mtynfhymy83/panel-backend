@@ -40,9 +40,15 @@ class AuthController extends Controller
         return $this->ok($this->auth->verifyPasswordLogin($request));
     }
 
-    public function logout(Request $request): array
+    public function refresh(array $request): array
     {
-        return $this->ok($this->auth->logout($this->extractToken($request)));
+        return $this->ok($this->auth->refresh($request));
+    }
+
+    public function logout(Request $httpRequest, array $data = []): array
+    {
+        $refreshToken = isset($data['refreshToken']) ? (string) $data['refreshToken'] : null;
+        return $this->ok($this->auth->logout($this->extractToken($httpRequest), $refreshToken));
     }
 
     public function me(): array
@@ -65,7 +71,8 @@ class AuthController extends Controller
         return $this->ok($this->auth->switchActiveRole(
             AuthContext::requireUserId(),
             $request,
-            AuthContext::token()
+            AuthContext::token(),
+            isset($request['refreshToken']) ? (string) $request['refreshToken'] : null
         ));
     }
 
