@@ -8,9 +8,34 @@ use App\Infrastructure\Database\DB;
 
 class RefreshTokenRepository
 {
-    public function create(int $userId, string $tokenHash, string $activeRole, string $expiresAt): int
+    public function upsertForUser(int $userId, string $tokenHash, string $activeRole, string $expiresAt): void
     {
-        $id = DB::execute(
+        $existing = DB::fetch(
+            'SELECT id FROM refresh_tokens WHERE user_id = :user_id ORDER BY id DESC LIMIT 1',
+            [':user_id' => $userId]
+        );
+
+        if ($existing !== null && $existing !== false) {
+            $id = (int) $existing['id'];
+            DB::execute(
+                'UPDATE refresh_tokens
+                 SET token_hash = :token_hash, active_role = :active_role, expires_at = :expires_at, revoked_at = NULL
+                 WHERE id = :id',
+                [
+                    ':id'           => $id,
+                    ':token_hash'   => $tokenHash,
+                    ':active_role'  => $activeRole,
+                    ':expires_at'   => $expiresAt,
+                ]
+            );
+            DB::execute(
+                'DELETE FROM refresh_tokens WHERE user_id = :user_id AND id != :id',
+                [':user_id' => $userId, ':id' => $id]
+            );
+            return;
+        }
+
+        DB::execute(
             'INSERT INTO refresh_tokens (user_id, token_hash, active_role, expires_at, created_at)
              VALUES (:user_id, :token_hash, :active_role, :expires_at, CURRENT_TIMESTAMP)',
             [
@@ -18,10 +43,17 @@ class RefreshTokenRepository
                 ':token_hash'   => $tokenHash,
                 ':active_role'  => $activeRole,
                 ':expires_at'   => $expiresAt,
-            ],
-            returnLastInsertId: true
+            ]
         );
-        return (int) $id;
+    }
+
+    public function countForUser(int $userId): int
+    {
+        $row = DB::fetch(
+            'SELECT COUNT(*) AS c FROM refresh_tokens WHERE user_id = :user_id',
+            [':user_id' => $userId]
+        );
+        return (int) ($row['c'] ?? 0);
     }
 
     public function findValidByHash(string $tokenHash): ?array

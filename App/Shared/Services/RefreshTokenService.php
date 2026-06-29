@@ -20,7 +20,7 @@ class RefreshTokenService
     public function issue(int $userId, string $activeRole): string
     {
         $raw = bin2hex(random_bytes(32));
-        $this->tokens->create(
+        $this->tokens->upsertForUser(
             $userId,
             $this->hash($raw),
             $activeRole,
@@ -45,10 +45,8 @@ class RefreshTokenService
             $userId = (int) $row['user_id'];
             $activeRole = (string) $row['active_role'];
 
-            $this->tokens->revokeByHash($hash);
-
             $newRaw = bin2hex(random_bytes(32));
-            $this->tokens->create(
+            $this->tokens->upsertForUser(
                 $userId,
                 $this->hash($newRaw),
                 $activeRole,

@@ -98,6 +98,20 @@ class AuthTest extends TestCase
         $this->assertSame('teacher', $result['user']['role']);
     }
 
+    public function testRepeatedLoginUpdatesSameRefreshTokenRow(): void
+    {
+        $auth = $this->authService();
+        $userId = $this->createUser(Role::Student->value, '09127777777');
+        $tokens = new RefreshTokenRepository();
+
+        $first = $auth->login(['phone' => '09127777777', 'password' => 'secret123']);
+        $this->assertSame(1, $tokens->countForUser($userId));
+
+        $second = $auth->login(['phone' => '09127777777', 'password' => 'secret123']);
+        $this->assertSame(1, $tokens->countForUser($userId));
+        $this->assertNotSame($first['refreshToken'], $second['refreshToken']);
+    }
+
     public function testRefreshIssuesNewTokensAndRotatesRefreshToken(): void
     {
         $auth = $this->authService();
