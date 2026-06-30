@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Admin\Services;
 
+use App\Shared\Enums\ExamCriteria;
 use App\Shared\Http\ResourceTransformer;
 use App\Shared\Repositories\ClassRepository;
 use App\Shared\Repositories\ExamRepository;
@@ -67,14 +68,35 @@ class AdminDashboardService
             return ['classes' => []];
         }
         $term = $this->terms->activeForClass($classId);
-        $studentCount = count($this->classes->memberUserIds($classId, 'student'));
-        $gradeCount = $term ? $this->grades->countForTerm((int) $term['id']) : 0;
+        $termId = $term ? (int) $term['id'] : null;
+        $studentRows = $this->classes->membersByRole($classId, 'student');
+        $studentCount = count($studentRows);
+        $gradeCount = $termId !== null ? $this->grades->countForTerm($termId) : 0;
+        $students = array_map(static function (array $row): array {
+            $firstName = (string) ($row['first_name'] ?? '');
+            $lastName = (string) ($row['last_name'] ?? '');
+
+            return [
+                'id'       => (int) $row['id'],
+                'fullName' => trim($firstName . ' ' . $lastName),
+                'phone'    => (string) ($row['phone'] ?? ''),
+            ];
+        }, $studentRows);
+        $examRows = $this->exams->listForClass($classId, $termId);
+        $exams = array_map(static fn (array $r) => ResourceTransformer::exam($r), $examRows);
+        $gradeRows = $termId !== null ? $this->grades->forTerm($termId) : [];
+        $grades = array_map(static fn (array $r) => ResourceTransformer::grade($r), $gradeRows);
+
         return [
             'classId'       => $classId,
             'activeTerm'    => $term ? ResourceTransformer::term($term) : null,
             'studentCount'  => $studentCount,
             'gradedCount'   => $gradeCount,
             'allGraded'     => $term !== null && $studentCount > 0 && $gradeCount >= $studentCount,
+            'students'      => $students,
+            'exams'         => $exams,
+            'grades'        => $grades,
+            'criteria'      => ExamCriteria::labels(),
         ];
     }
 }

@@ -63,6 +63,22 @@ class ExamRepository
         return (int) $id;
     }
 
+    /** @return list<array> */
+    public function listForClass(int $classId, ?int $termId = null): array
+    {
+        $where = ['e.course_class_id = :class_id'];
+        $params = [':class_id' => $classId];
+        if ($termId !== null) {
+            $where[] = 'e.term_id = :term_id';
+            $params[':term_id'] = $termId;
+        }
+
+        return DB::fetchAll(
+            'SELECT e.* FROM exams e WHERE ' . implode(' AND ', $where) . ' ORDER BY e.id DESC',
+            $params
+        );
+    }
+
     public function list(?int $classId = null, ?string $level = null, int $limit = 20, int $offset = 0): array
     {
         $where = ['1=1'];
