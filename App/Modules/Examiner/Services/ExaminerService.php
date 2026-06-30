@@ -27,7 +27,23 @@ class ExaminerService
     public function dashboard(int $examinerId): array
     {
         $classRows = $this->classes->classesForUser($examinerId, 'examiner');
-        return ['classesCount' => count($classRows)];
+        $classes = [];
+        foreach ($classRows as $row) {
+            $classId = (int) $row['id'];
+            $activeTerm = $this->terms->activeForClass($classId);
+            $class = ResourceTransformer::courseClass($row, $this->classes->memberships($classId));
+            $class['activeTerm'] = $activeTerm ? ResourceTransformer::term($activeTerm) : null;
+            $classes[] = $class;
+        }
+
+        $examRows = $this->exams->listForExaminer($examinerId);
+        $exams = array_map(static fn (array $r) => ResourceTransformer::exam($r), $examRows);
+
+        return [
+            'classesCount' => count($classRows),
+            'classes'      => $classes,
+            'exams'        => $exams,
+        ];
     }
 
     public function getExam(int $examinerId, int $classId): array

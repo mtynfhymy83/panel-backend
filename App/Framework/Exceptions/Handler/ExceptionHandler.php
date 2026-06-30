@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Framework\Exceptions\Handler;
 
+use App\Infrastructure\Monitoring\SentryService;
 use App\Shared\Exceptions\HttpException;
 use App\Shared\Exceptions\ValidationException;
 use App\Shared\Exceptions\AccessDeniedException;
@@ -67,6 +68,8 @@ class ExceptionHandler
 
     private function log(Throwable $e): void
     {
+        SentryService::report($e);
+
         error_log(sprintf(
             '[Exception] %s: %s in %s:%d',
             get_class($e), $e->getMessage(), $e->getFile(), $e->getLine()

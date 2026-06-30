@@ -7,6 +7,7 @@ namespace App\Framework\Bootstrap;
 use App\Http\Routers\Router;
 use App\Infrastructure\Database\DB;
 use App\Infrastructure\Database\PDOPool;
+use App\Infrastructure\Monitoring\SentryService;
 use Swoole\Http\Server as SwooleServer;
 
 /**
@@ -25,11 +26,13 @@ class WorkerBootstrapper
     public function boot(): void
     {
         try {
+            SentryService::init();
             $this->initializeDatabase();
             $this->initializeEvents();
             $this->initializeRouting();
             $this->logWorkerStart();
         } catch (\Throwable $e) {
+            SentryService::report($e);
             error_log("CRITICAL: Worker #{$this->workerId} failed to bootstrap: " . $e->getMessage());
             error_log($e->getTraceAsString());
             throw $e;
@@ -105,10 +108,12 @@ class WorkerBootstrapper
             return;
         }
         $debug = (($_ENV['APP_DEBUG'] ?? '0') === '1') ? 'ON' : 'OFF';
+        $sentry = SentryService::isEnabled() ? 'ON' : 'OFF';
         echo "--------------------------------------------------\n";
         echo "Server started at http://{$this->swoole->host}:{$this->swoole->port}\n";
         echo "  Workers:    " . $this->swoole->setting['worker_num'] . "\n";
         echo "  Debug mode: {$debug}\n";
+        echo "  Sentry:     {$sentry}\n";
         echo "--------------------------------------------------\n";
     }
 }

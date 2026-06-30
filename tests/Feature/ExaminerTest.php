@@ -17,6 +17,41 @@ use Tests\TestCase;
 
 class ExaminerTest extends TestCase
 {
+    public function testExaminerDashboardReturnsAssignedClassesAndExams(): void
+    {
+        $teacherId = $this->createUser(Role::Teacher->value, '09127000010');
+        $studentId = $this->createUser(Role::Student->value, '09127000011');
+        $examinerId = $this->createUser(Role::Examiner->value, '09127000012');
+
+        $classes = new ClassRepository();
+        $classId = $classes->create('Class H', '2');
+        $classes->addMember($classId, $teacherId, 'teacher');
+        $classes->addMember($classId, $studentId, 'student');
+        $classes->addMember($classId, $examinerId, 'examiner');
+
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService->createTerm($teacherId, $classId, ['name' => 'Dashboard Term', 'startDate' => '2026-06-01']);
+
+        $service = new ExaminerService($classes, new TermRepository(), new ExamRepository());
+        $service->submitExam($examinerId, $classId, ['examDate' => '2026-06-15']);
+
+        $dashboard = $service->dashboard($examinerId);
+
+        $this->assertSame(1, $dashboard['classesCount']);
+        $this->assertCount(1, $dashboard['classes']);
+        $this->assertSame($classId, $dashboard['classes'][0]['id']);
+        $this->assertSame('Class H', $dashboard['classes'][0]['name']);
+        $this->assertSame('2', $dashboard['classes'][0]['level']);
+        $this->assertSame([$teacherId], $dashboard['classes'][0]['teacherIds']);
+        $this->assertSame([$studentId], $dashboard['classes'][0]['studentIds']);
+        $this->assertSame([$examinerId], $dashboard['classes'][0]['examinerIds']);
+        $this->assertNotNull($dashboard['classes'][0]['activeTerm']);
+        $this->assertSame('Dashboard Term', $dashboard['classes'][0]['activeTerm']['name']);
+        $this->assertCount(1, $dashboard['exams']);
+        $this->assertSame($classId, $dashboard['exams'][0]['classId']);
+        $this->assertSame($examinerId, $dashboard['exams'][0]['examinerId']);
+    }
+
     public function testExaminerCannotSubmitWithoutActiveTerm(): void
     {
         $examinerId = $this->createUser(Role::Examiner->value, '09127000001');

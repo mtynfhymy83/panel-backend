@@ -29,6 +29,18 @@ class ExamRepository
         return $row ?: null;
     }
 
+    /** @return list<array> */
+    public function listForExaminer(int $examinerId): array
+    {
+        return DB::fetchAll(
+            'SELECT e.* FROM exams e
+             INNER JOIN class_memberships m ON m.course_class_id = e.course_class_id
+             WHERE e.examiner_id = :examiner_id AND m.user_id = :examiner_id AND m.role = :role
+             ORDER BY e.id DESC',
+            [':examiner_id' => $examinerId, ':role' => 'examiner']
+        );
+    }
+
     public function create(array $data): int
     {
         $id = DB::execute(

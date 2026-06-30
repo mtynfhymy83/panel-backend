@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middlewares;
 
 use App\Framework\Core\MiddlewareInterface;
+use App\Infrastructure\Monitoring\SentryService;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 
@@ -49,6 +50,7 @@ class ServerErrorMiddleware implements MiddlewareInterface
             'data'    => $this->debug ? ['trace' => $e->getTraceAsString()] : null,
         ], JSON_UNESCAPED_UNICODE));
 
+        SentryService::report($e);
         error_log(sprintf('[ServerError] %s in %s:%d', $e->getMessage(), $e->getFile(), $e->getLine()));
     }
 }

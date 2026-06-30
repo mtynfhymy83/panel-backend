@@ -14,6 +14,7 @@ use App\Http\DocsController;
 use App\Http\Routers\Router;
 use App\Http\Middlewares\ServerErrorMiddleware;
 use App\Infrastructure\Database\DB;
+use App\Infrastructure\Monitoring\SentryService;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Http\Server as SwooleServer;
@@ -136,6 +137,8 @@ class Server
         Context::set('request', $request);
         Context::set('response', $response);
         Context::set('swoole.server', $this->http);
+
+        SentryService::configureRequestScope($request);
 
         $uri = $request->server['request_uri'] ?? '/';
 
