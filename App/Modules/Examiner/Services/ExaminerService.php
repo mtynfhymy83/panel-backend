@@ -49,15 +49,17 @@ class ExaminerService
     public function getExam(int $examinerId, int $classId): array
     {
         $this->assertExaminerOfClass($examinerId, $classId);
+        $students = $this->classStudents($classId);
         $activeTerm = $this->terms->activeForClass($classId);
         if ($activeTerm === null) {
-            return ['activeTerm' => null, 'exam' => null];
+            return ['activeTerm' => null, 'exam' => null, 'students' => $students];
         }
 
         $exam = $this->exams->findByTermClassExaminer((int) $activeTerm['id'], $classId, $examinerId);
         return [
             'activeTerm' => ResourceTransformer::term($activeTerm),
             'exam'       => $exam ? ResourceTransformer::exam($exam) : null,
+            'students'   => $students,
         ];
     }
 
@@ -104,5 +106,12 @@ class ExaminerService
         if (!$this->classes->hasMembership($classId, $examinerId, 'examiner')) {
             throw new ForbiddenException('You are not assigned to this class as an examiner.');
         }
+    }
+
+    /** @return list<array> */
+    private function classStudents(int $classId): array
+    {
+        $rows = $this->classes->membersByRole($classId, 'student');
+        return array_map(static fn (array $r) => ResourceTransformer::user($r, 'student'), $rows);
     }
 }

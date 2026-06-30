@@ -52,6 +52,36 @@ class ExaminerTest extends TestCase
         $this->assertSame($examinerId, $dashboard['exams'][0]['examinerId']);
     }
 
+    public function testExaminerGetExamReturnsClassStudents(): void
+    {
+        $teacherId = $this->createUser(Role::Teacher->value, '09127000020');
+        $examinerId = $this->createUser(Role::Examiner->value, '09127000021');
+        $studentOneId = $this->createUser(Role::Student->value, '09127000022', 'Ali', 'Ahmadi');
+        $studentTwoId = $this->createUser(Role::Student->value, '09127000023', 'Sara', 'Karimi');
+
+        $classes = new ClassRepository();
+        $classId = $classes->create('Class I', '2');
+        $classes->addMember($classId, $teacherId, 'teacher');
+        $classes->addMember($classId, $examinerId, 'examiner');
+        $classes->addMember($classId, $studentOneId, 'student');
+        $classes->addMember($classId, $studentTwoId, 'student');
+
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService->createTerm($teacherId, $classId, ['name' => 'Exam Students Term', 'startDate' => '2026-06-01']);
+
+        $service = new ExaminerService($classes, new TermRepository(), new ExamRepository());
+        $result = $service->getExam($examinerId, $classId);
+
+        $this->assertNotNull($result['activeTerm']);
+        $this->assertNull($result['exam']);
+        $this->assertCount(2, $result['students']);
+        $this->assertSame($studentOneId, $result['students'][0]['id']);
+        $this->assertSame('Ali Ahmadi', $result['students'][0]['fullName']);
+        $this->assertSame('09127000022', $result['students'][0]['phone']);
+        $this->assertSame($studentTwoId, $result['students'][1]['id']);
+        $this->assertSame('Sara Karimi', $result['students'][1]['fullName']);
+    }
+
     public function testExaminerCannotSubmitWithoutActiveTerm(): void
     {
         $examinerId = $this->createUser(Role::Examiner->value, '09127000001');

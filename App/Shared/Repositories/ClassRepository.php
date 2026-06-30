@@ -127,4 +127,16 @@ class ClassRepository
         );
         return array_map(static fn (array $r) => (int) $r['user_id'], $rows);
     }
+
+    /** @return list<array> */
+    public function membersByRole(int $classId, string $role): array
+    {
+        return DB::fetchAll(
+            'SELECT u.* FROM users u
+             INNER JOIN class_memberships m ON m.user_id = u.id
+             WHERE m.course_class_id = :class_id AND m.role = :role AND u.deleted_at IS NULL
+             ORDER BY u.id',
+            [':class_id' => $classId, ':role' => $role]
+        );
+    }
 }
