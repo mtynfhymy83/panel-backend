@@ -1045,6 +1045,8 @@ paths:
                               properties:
                                 id: { type: integer }
                                 fullName: { type: string }
+
+  /api/teacher/classes/{class}/exams:
     get:
       tags: [Teacher]
       summary: List exams for a class
