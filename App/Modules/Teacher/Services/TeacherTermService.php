@@ -48,6 +48,7 @@ class TeacherTermService
             $exams = $this->classExams($classId);
             $class['exams'] = $exams;
             $class['examCount'] = count($exams);
+            $class['students'] = $this->classStudents($classId);
 
             return $class;
         }, $rows);
@@ -58,8 +59,10 @@ class TeacherTermService
         $this->assertTeacherOfClass($teacherId, $classId);
         $row = $this->classes->findById($classId);
         $activeTerm = $this->terms->activeForClass($classId);
+        $class = ResourceTransformer::courseClass($row, $this->classes->memberships($classId));
+        $class['students'] = $this->classStudents($classId);
         return [
-            'class'      => ResourceTransformer::courseClass($row, $this->classes->memberships($classId)),
+            'class'      => $class,
             'activeTerm' => $activeTerm ? ResourceTransformer::term($activeTerm) : null,
         ];
     }
@@ -67,8 +70,11 @@ class TeacherTermService
     public function listStudents(int $teacherId, int $classId): array
     {
         $this->assertTeacherOfClass($teacherId, $classId);
-        $studentIds = $this->classes->memberUserIds($classId, 'student');
-        return ['studentIds' => $studentIds];
+        $students = $this->classStudents($classId);
+        return [
+            'studentIds' => array_map(static fn (array $s) => $s['id'], $students),
+            'students'   => $students,
+        ];
     }
 
     public function listExams(int $teacherId, int $classId): array
@@ -133,6 +139,21 @@ class TeacherTermService
         if (!$this->classes->hasMembership($classId, $teacherId, 'teacher')) {
             throw new ForbiddenException('You are not assigned to this class as a teacher.');
         }
+    }
+
+    /** @return list<array> */
+    private function classStudents(int $classId): array
+    {
+        $rows = $this->classes->membersByRole($classId, 'student');
+        return array_map(static function (array $row): array {
+            $firstName = (string) ($row['first_name'] ?? '');
+            $lastName = (string) ($row['last_name'] ?? '');
+
+            return [
+                'id'       => (int) $row['id'],
+                'fullName' => trim($firstName . ' ' . $lastName),
+            ];
+        }, $rows);
     }
 
     /** @return list<array> */

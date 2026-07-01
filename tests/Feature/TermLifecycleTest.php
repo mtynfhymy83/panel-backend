@@ -115,7 +115,7 @@ class TermLifecycleTest extends TestCase
     {
         $teacherId = $this->createUser(Role::Teacher->value, '09125000008');
         $examinerId = $this->createUser(Role::Examiner->value, '09125000009', 'Sara', 'Examiner');
-        $studentId = $this->createUser(Role::Student->value, '09125000010');
+        $studentId = $this->createUser(Role::Student->value, '09125000010', 'Ali', 'Student');
 
         $classes = new ClassRepository();
         $classId = $classes->create('Class With Exam', '2');
@@ -142,10 +142,17 @@ class TermLifecycleTest extends TestCase
 
         $this->assertCount(1, $items[0]['exams']);
         $this->assertSame(1, $items[0]['examCount']);
+        $this->assertCount(1, $items[0]['students']);
+        $this->assertSame($studentId, $items[0]['students'][0]['id']);
+        $this->assertSame('Ali Student', $items[0]['students'][0]['fullName']);
         $this->assertSame($classId, $items[0]['exams'][0]['classId']);
         $this->assertSame('2026-06-15', $items[0]['exams'][0]['examDate']);
         $this->assertSame('Sara Examiner', $items[0]['exams'][0]['examiner']['fullName']);
         $this->assertCount(1, $exams);
         $this->assertSame($examinerId, $exams[0]['examinerId']);
+
+        $students = $termService->listStudents($teacherId, $classId);
+        $this->assertSame([$studentId], $students['studentIds']);
+        $this->assertSame('Ali Student', $students['students'][0]['fullName']);
     }
 }

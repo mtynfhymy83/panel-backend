@@ -182,6 +182,13 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/ExamWithExaminer'
+            students:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  fullName: { type: string }
 
     ExaminerCourseClass:
       allOf:
@@ -1018,9 +1025,26 @@ paths:
           schema: { type: integer }
       responses:
         '200':
-          description: Student IDs
-
-  /api/teacher/classes/{class}/exams:
+          description: Student IDs and brief student profiles
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          studentIds:
+                            type: array
+                            items: { type: integer }
+                          students:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id: { type: integer }
+                                fullName: { type: string }
     get:
       tags: [Teacher]
       summary: List exams for a class
