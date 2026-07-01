@@ -10,9 +10,11 @@ use App\Shared\Exceptions\ForbiddenException;
 use App\Shared\Exceptions\NotFoundException;
 use App\Shared\Http\ResourceTransformer;
 use App\Shared\Repositories\ClassRepository;
+use App\Shared\Repositories\ExamRepository;
 use App\Shared\Repositories\FeedbackRepository;
 use App\Shared\Repositories\GradeRepository;
 use App\Shared\Repositories\TermRepository;
+use App\Shared\Repositories\UserRepository;
 use App\Shared\Validators\Validator;
 
 class TeacherTermService
@@ -20,7 +22,9 @@ class TeacherTermService
     public function __construct(
         private ClassRepository $classes,
         private TermRepository $terms,
-        private GradeRepository $grades
+        private GradeRepository $grades,
+        private ExamRepository $exams,
+        private UserRepository $users
     ) {
     }
 
@@ -41,6 +45,9 @@ class TeacherTermService
             $class = ResourceTransformer::courseClass($r, $this->classes->memberships($classId));
             $activeTerm = $this->terms->activeForClass($classId);
             $class['activeTerm'] = $activeTerm ? ResourceTransformer::term($activeTerm) : null;
+            $exams = $this->classExams($classId);
+            $class['exams'] = $exams;
+            $class['examCount'] = count($exams);
 
             return $class;
         }, $rows);
@@ -62,6 +69,12 @@ class TeacherTermService
         $this->assertTeacherOfClass($teacherId, $classId);
         $studentIds = $this->classes->memberUserIds($classId, 'student');
         return ['studentIds' => $studentIds];
+    }
+
+    public function listExams(int $teacherId, int $classId): array
+    {
+        $this->assertTeacherOfClass($teacherId, $classId);
+        return $this->classExams($classId);
     }
 
     public function createTerm(int $teacherId, int $classId, array $input): array
@@ -120,5 +133,31 @@ class TeacherTermService
         if (!$this->classes->hasMembership($classId, $teacherId, 'teacher')) {
             throw new ForbiddenException('You are not assigned to this class as a teacher.');
         }
+    }
+
+    /** @return list<array> */
+    private function classExams(int $classId): array
+    {
+        $rows = $this->exams->listForClass($classId);
+        return array_map(fn (array $row) => $this->transformExam($row), $rows);
+    }
+
+    private function transformExam(array $row): array
+    {
+        $exam = ResourceTransformer::exam($row);
+        $examiner = $this->users->findById((int) $row['examiner_id']);
+        if ($examiner === null) {
+            $exam['examiner'] = null;
+            return $exam;
+        }
+
+        $firstName = (string) ($examiner['first_name'] ?? '');
+        $lastName = (string) ($examiner['last_name'] ?? '');
+        $exam['examiner'] = [
+            'id'       => (int) $examiner['id'],
+            'fullName' => trim($firstName . ' ' . $lastName),
+        ];
+
+        return $exam;
     }
 }

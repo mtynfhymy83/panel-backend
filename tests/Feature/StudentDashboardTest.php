@@ -9,10 +9,12 @@ use App\Modules\Teacher\Services\TeacherGradeService;
 use App\Modules\Teacher\Services\TeacherTermService;
 use App\Shared\Enums\Role;
 use App\Shared\Repositories\ClassRepository;
+use App\Shared\Repositories\ExamRepository;
 use App\Shared\Repositories\FeedbackRepository;
 use App\Shared\Repositories\GradeRepository;
 use App\Shared\Repositories\MessageRepository;
 use App\Shared\Repositories\TermRepository;
+use App\Shared\Repositories\UserRepository;
 use Tests\TestCase;
 
 class StudentDashboardTest extends TestCase
@@ -27,7 +29,7 @@ class StudentDashboardTest extends TestCase
         $classes->addMember($classId, $teacherId, 'teacher');
         $classes->addMember($classId, $studentId, 'student');
 
-        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository(), new ExamRepository(), new UserRepository());
         $gradeService = new TeacherGradeService($classes, new TermRepository(), new GradeRepository(), new FeedbackRepository());
         $studentService = new StudentService(new GradeRepository(), new TermRepository(), $classes, new MessageRepository());
 
@@ -59,7 +61,7 @@ class StudentDashboardTest extends TestCase
         $classes->addMember($classId, $teacherId, 'teacher');
         $classes->addMember($classId, $studentId, 'student');
 
-        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository(), new ExamRepository(), new UserRepository());
         $gradeService = new TeacherGradeService($classes, new TermRepository(), new GradeRepository(), new FeedbackRepository());
         $studentService = new StudentService(new GradeRepository(), new TermRepository(), $classes, new MessageRepository());
 

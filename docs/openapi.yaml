@@ -97,6 +97,177 @@ components:
         examinerIds: { type: array, items: { type: integer } }
         createdAt: { type: string, format: date-time }
 
+    TeacherBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        phone: { type: string }
+
+    StudentBrief:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        phone: { type: string }
+
+    StudentClass:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        level: { type: string }
+        teachers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeacherBrief'
+
+    ExamExaminer:
+      type: object
+      nullable: true
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+
+    Exam:
+      type: object
+      properties:
+        id: { type: integer }
+        classId: { type: integer }
+        termId: { type: integer }
+        examinerId: { type: integer }
+        examDate: { type: string, format: date }
+        studentScores:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              note: { type: string }
+              scores:
+                type: object
+                properties:
+                  phonics: { type: number }
+                  receptive: { type: number }
+                  vocabulary: { type: number }
+        classStrengths: { type: string, nullable: true }
+        classImprovements: { type: string, nullable: true }
+        classSuggestions: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    ExamWithExaminer:
+      allOf:
+        - $ref: '#/components/schemas/Exam'
+        - type: object
+          properties:
+            examiner:
+              $ref: '#/components/schemas/ExamExaminer'
+
+    CourseClassWithTerm:
+      allOf:
+        - $ref: '#/components/schemas/CourseClass'
+        - type: object
+          properties:
+            activeTerm:
+              allOf:
+                - $ref: '#/components/schemas/Term'
+              nullable: true
+
+    TeacherCourseClass:
+      allOf:
+        - $ref: '#/components/schemas/CourseClassWithTerm'
+        - type: object
+          properties:
+            examCount: { type: integer }
+            exams:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExamWithExaminer'
+
+    ExaminerCourseClass:
+      allOf:
+        - $ref: '#/components/schemas/CourseClassWithTerm'
+
+    ExaminerDashboard:
+      type: object
+      properties:
+        classesCount: { type: integer }
+        classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExaminerCourseClass'
+        exams:
+          type: array
+          items:
+            $ref: '#/components/schemas/Exam'
+
+    ExaminerExamContext:
+      type: object
+      properties:
+        activeTerm:
+          allOf:
+            - $ref: '#/components/schemas/Term'
+          nullable: true
+        exam:
+          allOf:
+            - $ref: '#/components/schemas/Exam'
+          nullable: true
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+
+    AdminProgress:
+      type: object
+      properties:
+        classId: { type: integer }
+        activeTerm:
+          allOf:
+            - $ref: '#/components/schemas/Term'
+          nullable: true
+        studentCount: { type: integer }
+        gradedCount: { type: integer }
+        allGraded: { type: boolean }
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentBrief'
+        exams:
+          type: array
+          items:
+            $ref: '#/components/schemas/Exam'
+        grades:
+          type: array
+          items:
+            $ref: '#/components/schemas/Grade'
+        criteria:
+          type: array
+          items: { type: string }
+          example: ['فونیکس و تلفظ', 'درک و پاسخ', 'واژگان']
+
+    StudentDashboard:
+      type: object
+      properties:
+        grades:
+          type: array
+          items:
+            $ref: '#/components/schemas/Grade'
+        endedTerms:
+          type: array
+          items:
+            $ref: '#/components/schemas/Term'
+        latestTerm:
+          allOf:
+            - $ref: '#/components/schemas/Term'
+          nullable: true
+        classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentClass'
+
+    MessageType:
+      type: string
+      enum: [general, complaint, suggestion, request, question]
+
     Term:
       type: object
       properties:
@@ -130,7 +301,8 @@ components:
         id: { type: integer }
         studentId: { type: integer }
         classId: { type: integer, nullable: true }
-        type: { type: string }
+        type:
+          $ref: '#/components/schemas/MessageType'
         title: { type: string }
         body: { type: string }
         status: { type: string, enum: [pending, reviewed, replied] }
@@ -686,7 +858,15 @@ paths:
           schema: { type: integer }
       responses:
         '200':
-          description: Progress data
+          description: Progress data for a class
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminProgress'
 
   /api/admin/messages:
     get:
@@ -800,7 +980,17 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         '200':
-          description: Class list
+          description: Assigned classes with active term and exams
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TeacherCourseClass'
 
   /api/teacher/classes/{class}:
     get:
@@ -829,6 +1019,32 @@ paths:
       responses:
         '200':
           description: Student IDs
+
+  /api/teacher/classes/{class}/exams:
+    get:
+      tags: [Teacher]
+      summary: List exams for a class
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: class
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Exams submitted for this class
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ExamWithExaminer'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/teacher/classes/{class}/terms:
     post:
@@ -946,7 +1162,15 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         '200':
-          description: Dashboard data
+          description: Assigned classes, exams, and counts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ExaminerDashboard'
 
   /api/examiner/classes/{class}/exam:
     get:
@@ -960,7 +1184,15 @@ paths:
           schema: { type: integer }
       responses:
         '200':
-          description: Active term and exam if exists
+          description: Active term, existing exam, and class students
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ExaminerExamContext'
     post:
       tags: [Examiner]
       summary: Submit exam for active term
@@ -996,7 +1228,15 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         '200':
-          description: Grades and ended terms
+          description: Grades, ended terms, and enrolled classes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/StudentDashboard'
 
   /api/student/messages:
     get:
@@ -1021,13 +1261,29 @@ paths:
               type: object
               required: [type, title, body]
               properties:
-                type: { type: string, enum: [general, complaint, suggestion, question] }
+                type:
+                  $ref: '#/components/schemas/MessageType'
                 title: { type: string }
                 body: { type: string }
-                classId: { type: integer }
+                classId:
+                  type: integer
+                  description: Class ID (camelCase)
+                class_id:
+                  type: integer
+                  description: Class ID (snake_case, same as classId)
       responses:
         '201':
           description: Message created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 
   /api/student/messages/mark-seen:
     patch:

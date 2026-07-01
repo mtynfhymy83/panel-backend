@@ -11,10 +11,12 @@ use App\Shared\Enums\ExamCriteria;
 use App\Shared\Enums\Role;
 use App\Shared\Repositories\ClassRepository;
 use App\Shared\Repositories\ExamRepository;
+use App\Shared\Repositories\ExamRepository;
 use App\Shared\Repositories\FeedbackRepository;
 use App\Shared\Repositories\GradeRepository;
 use App\Shared\Repositories\MessageRepository;
 use App\Shared\Repositories\TermRepository;
+use App\Shared\Repositories\UserRepository;
 use App\Shared\Repositories\UserRepository;
 use Tests\TestCase;
 
@@ -32,7 +34,7 @@ class AdminProgressTest extends TestCase
         $classes->addMember($classId, $examinerId, 'examiner');
         $classes->addMember($classId, $studentId, 'student');
 
-        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository(), new ExamRepository(), new UserRepository());
         $termService->createTerm($teacherId, $classId, ['name' => 'Progress Term', 'startDate' => '2026-06-01']);
 
         $examinerService = new ExaminerService($classes, new TermRepository(), new ExamRepository());

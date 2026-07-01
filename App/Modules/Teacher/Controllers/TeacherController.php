@@ -47,6 +47,11 @@ class TeacherController extends Controller
         return $this->ok($this->terms->listStudents(AuthContext::requireUserId(), $class));
     }
 
+    public function listExams(int $class): array
+    {
+        return $this->collection($this->terms->listExams(AuthContext::requireUserId(), $class));
+    }
+
     public function submitGrade(array $request): array
     {
         return $this->created($this->grades->submitGrade(AuthContext::requireUserId(), $request));

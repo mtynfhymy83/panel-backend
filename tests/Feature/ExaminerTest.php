@@ -13,6 +13,7 @@ use App\Shared\Repositories\ClassRepository;
 use App\Shared\Repositories\ExamRepository;
 use App\Shared\Repositories\GradeRepository;
 use App\Shared\Repositories\TermRepository;
+use App\Shared\Repositories\UserRepository;
 use Tests\TestCase;
 
 class ExaminerTest extends TestCase
@@ -29,7 +30,7 @@ class ExaminerTest extends TestCase
         $classes->addMember($classId, $studentId, 'student');
         $classes->addMember($classId, $examinerId, 'examiner');
 
-        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository(), new ExamRepository(), new UserRepository());
         $termService->createTerm($teacherId, $classId, ['name' => 'Dashboard Term', 'startDate' => '2026-06-01']);
 
         $service = new ExaminerService($classes, new TermRepository(), new ExamRepository());
@@ -66,7 +67,7 @@ class ExaminerTest extends TestCase
         $classes->addMember($classId, $studentOneId, 'student');
         $classes->addMember($classId, $studentTwoId, 'student');
 
-        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository(), new ExamRepository(), new UserRepository());
         $termService->createTerm($teacherId, $classId, ['name' => 'Exam Students Term', 'startDate' => '2026-06-01']);
 
         $service = new ExaminerService($classes, new TermRepository(), new ExamRepository());
@@ -104,7 +105,7 @@ class ExaminerTest extends TestCase
         $classes->addMember($classId, $teacherId, 'teacher');
         $classes->addMember($classId, $examinerId, 'examiner');
 
-        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository(), new ExamRepository(), new UserRepository());
         $termService->createTerm($teacherId, $classId, ['name' => 'Exam Term', 'startDate' => '2026-06-01']);
 
         $service = new ExaminerService($classes, new TermRepository(), new ExamRepository());

@@ -14,6 +14,7 @@ return static function (Router $router): void {
     $router->patch('api', '/teacher/terms/{term}/end', TeacherController::class, 'endTerm', $teacher);
     $router->get('api', '/teacher/classes/{class}', TeacherController::class, 'showClass', $teacher);
     $router->get('api', '/teacher/classes/{class}/students', TeacherController::class, 'listStudents', $teacher);
+    $router->get('api', '/teacher/classes/{class}/exams', TeacherController::class, 'listExams', $teacher);
     $router->post('api', '/teacher/grades', TeacherController::class, 'submitGrade', $teacher);
     $router->get('api', '/teacher/feedbacks', TeacherController::class, 'listFeedbacks', $teacher);
     $router->patch('api', '/teacher/feedbacks/mark-seen', TeacherController::class, 'markFeedbacksSeen', $teacher);
