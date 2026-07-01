@@ -52,6 +52,40 @@ class ResourceTransformer
         ];
     }
 
+    public static function userBrief(array $row): array
+    {
+        $firstName = (string) ($row['first_name'] ?? '');
+        $lastName = (string) ($row['last_name'] ?? '');
+
+        return [
+            'id'       => (int) $row['id'],
+            'fullName' => trim($firstName . ' ' . $lastName),
+            'phone'    => (string) ($row['phone'] ?? ''),
+        ];
+    }
+
+    public static function classBrief(?array $row): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'id'    => (int) $row['id'],
+            'name'  => (string) ($row['name'] ?? ''),
+            'level' => (string) ($row['level'] ?? ''),
+        ];
+    }
+
+    public static function messageWithContext(array $row, ?array $student = null, ?array $class = null): array
+    {
+        $message = self::message($row);
+        $message['student'] = $student !== null ? self::userBrief($student) : null;
+        $message['class'] = self::classBrief($class);
+
+        return $message;
+    }
+
     public static function term(array $row): array
     {
         return [

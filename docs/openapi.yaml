@@ -314,6 +314,19 @@ components:
         body: { type: string }
         status: { type: string, enum: [pending, reviewed, replied] }
         adminReply: { type: string, nullable: true }
+        student:
+          allOf:
+            - $ref: '#/components/schemas/StudentBrief'
+          nullable: true
+          description: Populated in admin message list/review/reply
+        class:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            level: { type: string }
+          description: Populated when message is linked to a class
 
     ValidationError:
       type: object

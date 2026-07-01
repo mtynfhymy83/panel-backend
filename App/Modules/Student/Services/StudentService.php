@@ -48,7 +48,7 @@ class StudentService
         $perPage = min(100, max(1, $perPage));
         $offset = ($page - 1) * $perPage;
         $rows = $this->messages->listForStudent($studentId, $perPage, $offset);
-        $items = array_map(static fn (array $r) => ResourceTransformer::message($r), $rows);
+        $items = array_map(fn (array $r) => $this->transformMessage($r), $rows);
         return [
             'items'       => $items,
             'total'       => $this->messages->countForStudent($studentId),
@@ -90,7 +90,7 @@ class StudentService
             return $id;
         });
 
-        return ResourceTransformer::message($this->messages->findById($messageId));
+        return $this->transformMessage($this->messages->findById($messageId));
     }
 
     public function markMessagesSeen(int $studentId, array $input): array
@@ -139,5 +139,17 @@ class StudentService
         }
 
         return null;
+    }
+
+    private function transformMessage(?array $row): array
+    {
+        if ($row === null) {
+            return [];
+        }
+
+        $classId = isset($row['course_class_id']) ? (int) $row['course_class_id'] : null;
+        $class = $classId !== null ? $this->classes->findById($classId) : null;
+
+        return ResourceTransformer::messageWithContext($row, null, $class);
     }
 }

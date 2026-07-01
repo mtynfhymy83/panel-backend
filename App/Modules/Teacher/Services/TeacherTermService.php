@@ -40,30 +40,17 @@ class TeacherTermService
     public function listClasses(int $teacherId): array
     {
         $rows = $this->classes->classesForUser($teacherId, 'teacher');
-        return array_map(function (array $r) {
-            $classId = (int) $r['id'];
-            $class = ResourceTransformer::courseClass($r, $this->classes->memberships($classId));
-            $activeTerm = $this->terms->activeForClass($classId);
-            $class['activeTerm'] = $activeTerm ? ResourceTransformer::term($activeTerm) : null;
-            $exams = $this->classExams($classId);
-            $class['exams'] = $exams;
-            $class['examCount'] = count($exams);
-            $class['students'] = $this->classStudents($classId);
-
-            return $class;
-        }, $rows);
+        return array_map(fn (array $r) => $this->buildTeacherClassView($r), $rows);
     }
 
     public function getClass(int $teacherId, int $classId): array
     {
         $this->assertTeacherOfClass($teacherId, $classId);
         $row = $this->classes->findById($classId);
-        $activeTerm = $this->terms->activeForClass($classId);
-        $class = ResourceTransformer::courseClass($row, $this->classes->memberships($classId));
-        $class['students'] = $this->classStudents($classId);
+        $class = $this->buildTeacherClassView($row);
         return [
             'class'      => $class,
-            'activeTerm' => $activeTerm ? ResourceTransformer::term($activeTerm) : null,
+            'activeTerm' => $class['activeTerm'],
         ];
     }
 
@@ -86,9 +73,12 @@ class TeacherTermService
     public function createTerm(int $teacherId, int $classId, array $input): array
     {
         $this->assertTeacherOfClass($teacherId, $classId);
-        Validator::make($input)->required('name')->required('startDate')->validate();
+        Validator::make($input)->required('name')->validate();
 
-        $startDate = (string) $input['startDate'];
+        $startDate = $this->optionalDate($input, 'startDate', 'start_date');
+        if ($startDate === null) {
+            throw new BadRequestException('startDate is required.');
+        }
         if ($this->terms->activeForClass($classId) !== null) {
             throw new BadRequestException('Class already has an active term.');
         }
@@ -107,7 +97,10 @@ class TeacherTermService
 
     public function endTerm(int $teacherId, int $termId, array $input): array
     {
-        Validator::make($input)->required('endDate')->validate();
+        $endDate = $this->optionalDate($input, 'endDate', 'end_date');
+        if ($endDate === null) {
+            throw new BadRequestException('endDate is required.');
+        }
 
         $term = $this->terms->findById($termId);
         if ($term === null) {
@@ -127,8 +120,8 @@ class TeacherTermService
             throw new BadRequestException('All students must have grades before ending the term.');
         }
 
-        DB::transaction(function () use ($termId, $input, $teacherId, $studentIds) {
-            $this->terms->endTerm($termId, (string) $input['endDate'], $teacherId, $studentIds);
+        DB::transaction(function () use ($termId, $endDate, $teacherId, $studentIds) {
+            $this->terms->endTerm($termId, $endDate, $teacherId, $studentIds);
         });
 
         return ResourceTransformer::term($this->terms->findById($termId));
@@ -145,15 +138,33 @@ class TeacherTermService
     private function classStudents(int $classId): array
     {
         $rows = $this->classes->membersByRole($classId, 'student');
-        return array_map(static function (array $row): array {
-            $firstName = (string) ($row['first_name'] ?? '');
-            $lastName = (string) ($row['last_name'] ?? '');
+        return array_map(static fn (array $row) => ResourceTransformer::userBrief($row), $rows);
+    }
 
-            return [
-                'id'       => (int) $row['id'],
-                'fullName' => trim($firstName . ' ' . $lastName),
-            ];
-        }, $rows);
+    private function buildTeacherClassView(array $row): array
+    {
+        $classId = (int) $row['id'];
+        $class = ResourceTransformer::courseClass($row, $this->classes->memberships($classId));
+        $activeTerm = $this->terms->activeForClass($classId);
+        $exams = $this->classExams($classId);
+        $class['activeTerm'] = $activeTerm ? ResourceTransformer::term($activeTerm) : null;
+        $class['exams'] = $exams;
+        $class['examCount'] = count($exams);
+        $class['students'] = $this->classStudents($classId);
+
+        return $class;
+    }
+
+    private function optionalDate(array $input, string $camelKey, string $snakeKey): ?string
+    {
+        foreach ([$camelKey, $snakeKey] as $key) {
+            if (!array_key_exists($key, $input) || $input[$key] === null || $input[$key] === '') {
+                continue;
+            }
+            return (string) $input[$key];
+        }
+
+        return null;
     }
 
     /** @return list<array> */
