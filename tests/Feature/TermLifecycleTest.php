@@ -86,4 +86,25 @@ class TermLifecycleTest extends TestCase
         $this->expectException(BadRequestException::class);
         $termService->createTerm($teacherId, $classId, ['name' => 'Second', 'startDate' => '2026-02-01']);
     }
+
+    public function testListClassesIncludesActiveTerm(): void
+    {
+        $teacherId = $this->createUser(Role::Teacher->value, '09125000007');
+        $classes = new ClassRepository();
+        $classId = $classes->create('Class With Term', '1');
+        $classes->addMember($classId, $teacherId, 'teacher');
+
+        $termService = new TeacherTermService($classes, new TermRepository(), new GradeRepository());
+        $termService->createTerm($teacherId, $classId, ['name' => 'ترم 1', 'startDate' => '2026-06-29']);
+
+        $items = $termService->listClasses($teacherId);
+
+        $this->assertCount(1, $items);
+        $this->assertSame($classId, $items[0]['id']);
+        $this->assertNotNull($items[0]['activeTerm']);
+        $this->assertSame('ترم 1', $items[0]['activeTerm']['name']);
+        $this->assertSame($classId, $items[0]['activeTerm']['classId']);
+        $this->assertSame('2026-06-29', $items[0]['activeTerm']['startDate']);
+        $this->assertTrue($items[0]['activeTerm']['isActive']);
+    }
 }

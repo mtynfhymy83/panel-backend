@@ -38,6 +38,7 @@ class StudentService
             'grades'      => $grades,
             'endedTerms'  => $terms,
             'latestTerm'  => $terms[0] ?? null,
+            'classes'     => $this->studentClasses($studentId),
         ];
     }
 
@@ -66,7 +67,7 @@ class StudentService
             ->in('type', MessageType::values())
             ->validate();
 
-        $classId = isset($input['classId']) ? (int) $input['classId'] : null;
+        $classId = $this->optionalClassId($input);
         if ($classId !== null && !$this->classes->hasMembership($classId, $studentId, 'student')) {
             throw new \App\Shared\Exceptions\ForbiddenException('You are not a student of this class.');
         }
@@ -97,5 +98,46 @@ class StudentService
         $ids = $input['ids'] ?? [];
         $this->messages->markSeenByStudent($studentId, is_array($ids) ? $ids : []);
         return ['unreadCount' => $this->messages->unreadCountForStudent($studentId)];
+    }
+
+    /** @return list<array> */
+    private function studentClasses(int $studentId): array
+    {
+        $classRows = $this->classes->classesForUser($studentId, 'student');
+        $result = [];
+        foreach ($classRows as $row) {
+            $classId = (int) $row['id'];
+            $teacherRows = $this->classes->membersByRole($classId, 'teacher');
+            $teachers = array_map(static function (array $teacher): array {
+                $firstName = (string) ($teacher['first_name'] ?? '');
+                $lastName = (string) ($teacher['last_name'] ?? '');
+
+                return [
+                    'id'       => (int) $teacher['id'],
+                    'fullName' => trim($firstName . ' ' . $lastName),
+                    'phone'    => (string) ($teacher['phone'] ?? ''),
+                ];
+            }, $teacherRows);
+            $result[] = [
+                'id'       => $classId,
+                'name'     => (string) ($row['name'] ?? ''),
+                'level'    => (string) ($row['level'] ?? ''),
+                'teachers' => $teachers,
+            ];
+        }
+
+        return $result;
+    }
+
+    private function optionalClassId(array $input): ?int
+    {
+        foreach (['classId', 'class_id'] as $key) {
+            if (!array_key_exists($key, $input) || $input[$key] === null || $input[$key] === '') {
+                continue;
+            }
+            return (int) $input[$key];
+        }
+
+        return null;
     }
 }

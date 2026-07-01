@@ -41,6 +41,12 @@ class StudentDashboardTest extends TestCase
         $dashboard = $studentService->dashboard($studentId);
         $this->assertSame([], $dashboard['grades']);
         $this->assertNull($dashboard['latestTerm']);
+        $this->assertCount(1, $dashboard['classes']);
+        $this->assertSame($classId, $dashboard['classes'][0]['id']);
+        $this->assertSame('Class D', $dashboard['classes'][0]['name']);
+        $this->assertSame('1', $dashboard['classes'][0]['level']);
+        $this->assertCount(1, $dashboard['classes'][0]['teachers']);
+        $this->assertSame($teacherId, $dashboard['classes'][0]['teachers'][0]['id']);
     }
 
     public function testStudentDashboardShowsEndedTermGrades(): void

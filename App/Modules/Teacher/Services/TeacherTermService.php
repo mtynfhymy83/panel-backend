@@ -36,10 +36,14 @@ class TeacherTermService
     public function listClasses(int $teacherId): array
     {
         $rows = $this->classes->classesForUser($teacherId, 'teacher');
-        return array_map(
-            fn (array $r) => ResourceTransformer::courseClass($r, $this->classes->memberships((int) $r['id'])),
-            $rows
-        );
+        return array_map(function (array $r) {
+            $classId = (int) $r['id'];
+            $class = ResourceTransformer::courseClass($r, $this->classes->memberships($classId));
+            $activeTerm = $this->terms->activeForClass($classId);
+            $class['activeTerm'] = $activeTerm ? ResourceTransformer::term($activeTerm) : null;
+
+            return $class;
+        }, $rows);
     }
 
     public function getClass(int $teacherId, int $classId): array
