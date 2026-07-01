@@ -9,6 +9,7 @@ enum MessageType: string
     case General = 'general';
     case Complaint = 'complaint';
     case Suggestion = 'suggestion';
+    case Request = 'request';
     case Question = 'question';
 
     /** @return list<string> */

@@ -56,4 +56,18 @@ class StudentMessageTest extends TestCase
 
         $this->assertSame($classId, $message['classId']);
     }
+
+    public function testCreateMessageAcceptsRequestType(): void
+    {
+        $studentId = $this->createUser(Role::Student->value, '09128000005');
+
+        $service = new StudentService(new GradeRepository(), new TermRepository(), new ClassRepository(), new MessageRepository());
+        $message = $service->createMessage($studentId, [
+            'type'  => MessageType::Request->value,
+            'title' => 'درخواست',
+            'body'  => 'متن درخواست',
+        ]);
+
+        $this->assertSame('request', $message['type']);
+    }
 }
